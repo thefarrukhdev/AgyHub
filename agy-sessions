@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+"""
+Antigravity (AGY) Session Manager
+A beautiful, dependency-free CLI tool to view and resume previous Antigravity AI sessions.
+"""
+
+import sys
+import os
+import json
+import re
+import argparse
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import List, Dict
+
+# Configuration Constants
+BRAIN_DIR = Path.home() / '.gemini' / 'antigravity-cli' / 'brain'
+
+# Modern ANSI Colors for Terminal UI
+class Colors:
+    CYAN = '\033[36m'
+    MAGENTA = '\033[35m'
+    GREEN = '\033[32m'
+    YELLOW = '\033[33m'
+    BLUE = '\033[34m'
+    RED = '\033[31m'
+    DIM = '\033[2m'
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+
+def get_relative_time(mtime: float) -> str:
+    """Convert a timestamp into a human-readable relative time format."""
+    diff = datetime.now() - datetime.fromtimestamp(mtime)
+    if diff < timedelta(minutes=1):
+        return "Just now"
+    if diff < timedelta(hours=1):
+        return f"{diff.seconds // 60} min ago"
+    if diff < timedelta(days=1):
+        return f"{diff.seconds // 3600} hrs ago"
+    if diff < timedelta(days=2):
+        return "Yesterday"
+    return f"{diff.days} days ago"
+
+def extract_user_prompt(log_file: Path) -> str:
+    """Safely extract the first meaningful user prompt from a session log file."""
+    try:
+        with open(log_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    if data.get('type') == 'USER_INPUT':
+                        content = data.get('content', '')
+                        
+                        # Normalize content structure
+                        if isinstance(content, dict):
+                            content_str = content.get('text', '')
+                        elif isinstance(content, list):
+                            content_str = ' '.join(str(c) for c in content)
+                        else:
+                            content_str = str(content)
+                        
+                        # Extract text from inside <USER_REQUEST> if present
+                        match = re.search(r'<USER_REQUEST>\s*(.*?)\s*</USER_REQUEST>', content_str, re.DOTALL)
+                        prompt_text = match.group(1).strip() if match else content_str.strip()
+
+                        # Strip any remaining XML/HTML tags and normalize whitespace
+                        prompt_text = re.sub(r'<[^>]+>', '', prompt_text)
+                        clean_prompt = ' '.join(prompt_text.split())
+                        
+                        if clean_prompt:
+                            return clean_prompt
+                except json.JSONDecodeError:
+                    continue
+    except Exception:
+        pass
+    return "No prompt available"
+
+def get_sessions(limit: int = 15) -> List[Dict]:
+    """Fetch and parse all available Antigravity sessions in the brain directory."""
+    sessions = []
+    if not BRAIN_DIR.exists():
+        return sessions
+
+    for conv_dir in BRAIN_DIR.iterdir():
+        if not conv_dir.is_dir():
+            continue
+            
+        log_file = conv_dir / '.system_generated' / 'logs' / 'transcript.jsonl'
+        if not log_file.exists():
+            continue
+
+        mtime = log_file.stat().st_mtime
+        sessions.append({
+            'id': conv_dir.name,
+            'mtime': mtime,
+            'relative': get_relative_time(mtime),
+            'prompt': extract_user_prompt(log_file)
+        })
+
+    # Sort descending (most recent first)
+    sessions.sort(key=lambda x: x['mtime'], reverse=True)
+    return sessions[:limit]
+
+def print_beautiful_table(sessions: List[Dict]):
+    """Render a beautiful, dependency-free terminal UI table."""
+    # Clear screen for a clean UI experience
+    print("\033[H\033[J", end="")
+    
+    # Beautiful Header
+    print(f"\n{Colors.BOLD}{Colors.CYAN}╭{'─'*117}╮")
+    print(f"│ {'Antigravity (AGY) Session Manager'.center(115)} │")
+    print(f"╰{'─'*117}╯{Colors.RESET}")
+
+    # Column Headers
+    print(f"{Colors.DIM}  {'#':<3} │ {'TIME':<12} │ {'SESSION':<8} │ {'FIRST PROMPT PREVIEW'}{Colors.RESET}")
+    print(f"{Colors.DIM} ─────┼──────────────┼──────────┼─────────────────────────────────────────────────────────────────────────────────────{Colors.RESET}")
+
+    for idx, s in enumerate(sessions, 1):
+        # Truncate prompt beautifully (now much longer: 83 chars)
+        prompt = s['prompt']
+        max_len = 83
+        prompt_trunc = prompt[:max_len] + '...' if len(prompt) > max_len else prompt.ljust(max_len)
+        
+        # Shorten UUID to 8 characters for cleaner UI
+        short_id = s['id'][:8]
+        
+        # Colorize cells
+        idx_str = f"{Colors.BOLD}{Colors.YELLOW}{idx:<3}{Colors.RESET}"
+        time_str = f"{Colors.CYAN}{s['relative']:<12}{Colors.RESET}"
+        cid_str = f"{Colors.GREEN}{short_id:<8}{Colors.RESET}"
+        prompt_str = f"{Colors.RESET}{prompt_trunc}"
+        
+        # Print formatted row
+        print(f"  {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
+
+    print(f"{Colors.DIM} ─────┴──────────────┴──────────┴─────────────────────────────────────────────────────────────────────────────────────{Colors.RESET}\n")
+
+def resume_session(session_id: str):
+    """Execute the AGY command to resume a specific session."""
+    print(f"\n{Colors.GREEN}🚀 Resuming session {Colors.BOLD}{session_id}{Colors.RESET}...\n")
+    os.execvp("agy", ["agy", "--conversation", session_id])
+
+def main():
+    parser = argparse.ArgumentParser(description="Beautiful Antigravity (agy) session manager")
+    parser.add_argument("select", nargs="?", help="Session index (1-based) or Session ID to resume")
+    parser.add_argument("-n", "--number", type=int, default=15, help="Number of recent sessions to show")
+    args = parser.parse_args()
+
+    sessions = get_sessions(limit=args.number)
+
+    if not sessions:
+        print(f"{Colors.YELLOW}No previous Antigravity sessions found.{Colors.RESET}")
+        sys.exit(0)
+
+    # Directly resume if an argument is passed
+    if args.select:
+        if args.select.isdigit():
+            idx = int(args.select) - 1
+            if 0 <= idx < len(sessions):
+                resume_session(sessions[idx]['id'])
+            else:
+                print(f"{Colors.RED}Error: Index out of range.{Colors.RESET}")
+                sys.exit(1)
+        else:
+            resume_session(args.select)
+        return
+
+    # Interactive Mode
+    print_beautiful_table(sessions)
+
+    try:
+        choice = input(f" {Colors.BOLD}{Colors.MAGENTA}❯ Enter session number to resume {Colors.DIM}(or press Enter to exit): {Colors.RESET}").strip()
+        if choice.isdigit():
+            idx = int(choice) - 1
+            if 0 <= idx < len(sessions):
+                resume_session(sessions[idx]['id'])
+            else:
+                print(f"\n{Colors.YELLOW}Invalid selection.{Colors.RESET}")
+    except (KeyboardInterrupt, EOFError):
+        print(f"\n{Colors.DIM}Cancelled.{Colors.RESET}")
+
+if __name__ == "__main__":
+    main()
