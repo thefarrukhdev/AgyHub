@@ -173,7 +173,7 @@ def main():
                 prompt_actions.append(_t('prompt_nav'))
             prompt_str = ", ".join(prompt_actions)
             
-            print(f" ❯ {Colors.BOLD}{color}{_t('prompt_enter', actions=prompt_str)}{Colors.RESET} {input_buffer}", end="")
+            print(f" {Colors.BOLD}{color}{_t('prompt_enter', actions=prompt_str)}{Colors.RESET} {input_buffer}", end="")
             sys.stdout.flush()
             
             key = read_key()
