@@ -1,6 +1,6 @@
 TRANSLATIONS = {
     'en': {
-        'title': 'Antigravity (AGY) Session Manager',
+        'title': 'AgyHub (Antigravity Session Manager)',
         'search_suffix': ' [Search: "{query}"]',
         'total_chats_page': 'Total Chats: {count} | Page {page}/{total}',
         'total_chats': 'Total Chats: {count}',
@@ -47,7 +47,7 @@ TRANSLATIONS = {
         'invalid_sel': 'Invalid selection.',
         'invalid_cmd': 'Invalid command.',
         'cancelled': 'Cancelled.',
-        'arg_desc': 'Beautiful Antigravity (agy) session manager',
+        'arg_desc': 'AgyHub - Beautiful Antigravity (AGY) session manager',
         'arg_select': 'Session index (1-based) or Session ID to resume',
         'arg_num': 'Number of sessions to show per page',
         'arg_page': 'Page number to display',
@@ -62,7 +62,7 @@ TRANSLATIONS = {
         'arg_lang': 'Set language {en, ru, uz}'
     },
     'ru': {
-        'title': 'Менеджер сессий Antigravity (AGY)',
+        'title': 'AgyHub (Менеджер сессий Antigravity)',
         'search_suffix': ' [Поиск: "{query}"]',
         'total_chats_page': 'Всего чатов: {count} | Стр. {page}/{total}',
         'total_chats': 'Всего чатов: {count}',
@@ -109,7 +109,7 @@ TRANSLATIONS = {
         'invalid_sel': 'Неверный выбор.',
         'invalid_cmd': 'Неверная команда.',
         'cancelled': 'Отменено.',
-        'arg_desc': 'Красивый менеджер сессий Antigravity (agy)',
+        'arg_desc': 'AgyHub - Красивый менеджер сессий Antigravity (AGY)',
         'arg_select': 'Индекс сессии (от 1) или ID для возобновления',
         'arg_num': 'Количество сессий на страницу',
         'arg_page': 'Номер страницы для отображения',
@@ -124,7 +124,7 @@ TRANSLATIONS = {
         'arg_lang': 'Установить язык {en, ru, uz}'
     },
     'uz': {
-        'title': 'Antigravity (AGY) Sessiya Menejeri',
+        'title': 'AgyHub (Antigravity Sessiya Menejeri)',
         'search_suffix': ' [Qidiruv: "{query}"]',
         'total_chats_page': 'Jami chatlar: {count} | Sahifa {page}/{total}',
         'total_chats': 'Jami chatlar: {count}',
@@ -171,7 +171,7 @@ TRANSLATIONS = {
         'invalid_sel': 'Noto\'g\'ri tanlov.',
         'invalid_cmd': 'Noto\'g\'ri buyruq.',
         'cancelled': 'Bekor qilindi.',
-        'arg_desc': 'Chiroyli Antigravity (agy) sessiya menejeri',
+        'arg_desc': 'AgyHub - Chiroyli Antigravity (AGY) sessiya menejeri',
         'arg_select': 'Sessiya indeksi (1 dan boshlanadi) yoki davom ettirish uchun Sessiya ID',
         'arg_num': 'Har bir sahifada ko\'rsatiladigan sessiyalar soni',
         'arg_page': 'Ko\'rsatiladigan sahifa raqami',
