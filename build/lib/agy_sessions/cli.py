@@ -149,6 +149,9 @@ def main():
 
     selected_idx = 0
 
+    selected_idx = 0
+    input_buffer = ""
+
     while True:
         total_pages = (total_count + limit - 1) // limit
         page = max(1, min(page, total_pages)) if total_pages > 0 else 1
@@ -170,14 +173,18 @@ def main():
                 prompt_actions.append(_t('prompt_nav'))
             prompt_str = ", ".join(prompt_actions)
             
-            print(f" ❯ {Colors.BOLD}{color}{_t('prompt_enter', actions=prompt_str)}{Colors.RESET}", end="")
+            print(f" ❯ {Colors.BOLD}{color}{_t('prompt_enter', actions=prompt_str)}{Colors.RESET} {input_buffer}", end="")
             sys.stdout.flush()
             
             key = read_key()
             
-            if key in ('q', 'Q', '\x1b'):
+            if key in ('q', 'Q', '\x1b') and not input_buffer:
                 break
-            elif key == 'n':
+            elif key.isdigit():
+                input_buffer += key
+            elif key in ('\x7f', '\b', '\x08'): # Backspace
+                input_buffer = input_buffer[:-1]
+            elif key == 'n' and not input_buffer:
                 print(f"\n{Colors.GREEN}{_t('new_msg')}{Colors.RESET}\n")
                 execute_new_session()
                 break
@@ -193,16 +200,21 @@ def main():
                 elif page < total_pages:
                     page += 1
                     selected_idx = 0
-            elif key == '\x1b[C' or key == '>': # RIGHT
+            elif key == '\x1b[C' or (key == '>' and not input_buffer): # RIGHT
                 if page < total_pages:
                     page += 1
                     selected_idx = 0
-            elif key == '\x1b[D' or key == '<': # LEFT
+            elif key == '\x1b[D' or (key == '<' and not input_buffer): # LEFT
                 if page > 1:
                     page -= 1
                     selected_idx = 0
             elif key in ('\n', '\r'): # ENTER
-                idx = start_idx + selected_idx
+                if input_buffer:
+                    idx = int(input_buffer) - 1
+                    input_buffer = "" # reset for next loop if invalid
+                else:
+                    idx = start_idx + selected_idx
+                    
                 if 0 <= idx < total_count:
                     if interactive_delete:
                         ui_delete_session(sessions[idx])
