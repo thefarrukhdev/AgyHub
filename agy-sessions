@@ -372,8 +372,8 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
     col_id_tag = _t('col_id_tag')
     col_preview = _t('col_preview')
 
-    print(f"{Colors.DIM}  {'#':<3} │ {col_time:<12} │ {col_id_tag:<20} │ {col_preview}{Colors.RESET}")
-    print(f"{Colors.DIM} ─────┼──────────────┼──────────────────────┼───────────────────────────────────────────────────────────────────────{Colors.RESET}")
+    print(f"{Colors.DIM}  {'#':<3} │ {col_time:<14} │ {col_id_tag:<20} │ {col_preview}{Colors.RESET}")
+    print(f"{Colors.DIM} ─────┼────────────────┼──────────────────────┼────────────────────────────────────────────────────────────────────────{Colors.RESET}")
 
     for i, s in enumerate(sessions):
         idx = start_idx + i + 1
@@ -385,7 +385,11 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
         pin_indicator = "📌 " if s['pinned'] else ""
         if s['tag']:
             clean_tag = ' '.join(s['tag'].split())
-            tag_trunc = clean_tag[:10] + '..' if len(clean_tag) > 12 else clean_tag
+            max_tag_len = 20 - len(pin_indicator) - len(f" ({short_id})")
+            if len(clean_tag) > max_tag_len:
+                tag_trunc = clean_tag[:max_tag_len-2] + '..'
+            else:
+                tag_trunc = clean_tag
             id_tag_str = f"{pin_indicator}{tag_trunc} ({short_id})"
         else:
             id_tag_str = f"{pin_indicator}{short_id}"
@@ -393,7 +397,7 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
         id_tag_str = id_tag_str.ljust(20)
         
         idx_str = f"{Colors.BOLD}{Colors.YELLOW}{idx:<3}{Colors.RESET}"
-        time_str = f"{Colors.CYAN}{s['relative']:<12}{Colors.RESET}"
+        time_str = f"{Colors.CYAN}{s['relative']:<14}{Colors.RESET}"
         cid_str = f"{Colors.GREEN}{id_tag_str}{Colors.RESET}"
         
         # Highlight search query in prompt if exists
@@ -404,7 +408,7 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
         prompt_str = f"{Colors.RESET}{prompt_trunc}"
         print(f"  {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
 
-    print(f"{Colors.DIM} ─────┴──────────────┴──────────────────────┴───────────────────────────────────────────────────────────────────────{Colors.RESET}\n")
+    print(f"{Colors.DIM} ─────┴────────────────┴──────────────────────┴────────────────────────────────────────────────────────────────────────{Colors.RESET}\n")
 
 def resume_session(session_id: str):
     """Execute the AGY command to resume a specific session."""
@@ -508,16 +512,12 @@ def resolve_session_selection(select_str: str, sessions: List[Dict]) -> Optional
     return None
 
 def main():
-    # Load language first to translate argparse if possible, though argparse initialization happens here.
-    # We will do a two-pass args parse, or just check sys.argv for --lang early.
-    cli_lang = None
-    if '--lang' in sys.argv:
-        try:
-            cli_lang = sys.argv[sys.argv.index('--lang') + 1]
-        except IndexError:
-            pass
-            
-    load_language(cli_lang)
+    # Pre-parse language argument to initialize translations correctly before main parsing
+    lang_parser = argparse.ArgumentParser(add_help=False)
+    lang_parser.add_argument("--lang")
+    lang_args, _ = lang_parser.parse_known_args()
+    
+    load_language(lang_args.lang)
     
     parser = argparse.ArgumentParser(description=_t('arg_desc'))
     parser.add_argument("select", nargs="?", help=_t('arg_select'))
