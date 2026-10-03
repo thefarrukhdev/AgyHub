@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agyhub"
+version = "2.0.0"
+description = "A beautiful, dependency-free CLI tool to view, search, and resume Antigravity AI sessions."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+# Zero external runtime dependencies — only Python stdlib is used.
+dependencies = []
+
+[project.scripts]
+agy-sessions = "agy_sessions.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agy_sessions*"]

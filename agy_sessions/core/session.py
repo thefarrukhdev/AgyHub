@@ -57,52 +57,29 @@ def extract_user_prompt(log_file: Path) -> str:
     return _t('prompt_no_prompt')
 
 def get_sessions(search_query: str = "") -> List[Dict]:
-    """Fetch and parse all available Antigravity sessions in the brain directory."""
+    """Fetch sessions from the SQLite cache (fast startup sync + DB query)."""
+    from agy_sessions.core.db import sync_cache, query_sessions  # late import avoids circular
+
+    # Run the lightweight filesystem sync on every call so that mutations
+    # (delete, tag, pin) made outside this process are always reflected.
+    sync_cache()
+
+    cached = query_sessions(search_query=search_query)
+
     sessions = []
-    if not BRAIN_DIR.exists():
-        return sessions
-
-    for conv_dir in BRAIN_DIR.iterdir():
-        if not conv_dir.is_dir():
-            continue
-            
-        log_file = conv_dir / '.system_generated' / 'logs' / 'transcript.jsonl'
-        if not log_file.exists():
-            continue
-
-        mtime = log_file.stat().st_mtime
-        prompt = extract_user_prompt(log_file)
-        
-        pinned = False
-        try:
-            pinned = (conv_dir / '.agy_pinned').exists()
-        except Exception:
-            pass
-        
-        tag_file = conv_dir / '.agy_tag'
-        tag = None
-        try:
-            if tag_file.exists():
-                tag = tag_file.read_text(encoding='utf-8').strip()
-        except Exception:
-            pass
-        
-        if search_query:
-            sq = search_query.lower()
-            if sq not in prompt.lower() and (not tag or sq not in tag.lower()):
-                continue
-
+    for row in cached:
+        sid = row['id']
+        conv_dir = BRAIN_DIR / sid
         sessions.append({
-            'id': conv_dir.name,
-            'mtime': mtime,
-            'relative': get_relative_time(mtime),
-            'prompt': prompt,
-            'path': conv_dir,
-            'pinned': pinned,
-            'tag': tag
+            'id':       sid,
+            'mtime':    row['mtime'],
+            'relative': get_relative_time(row['mtime']),
+            'prompt':   row['prompt'],
+            'path':     conv_dir,
+            'pinned':   row['pinned'],
+            'tag':      row['tag'],
         })
 
-    sessions.sort(key=lambda x: (not x['pinned'], -x['mtime']))
     return sessions
 
 def safe_delete_session(path: Path):

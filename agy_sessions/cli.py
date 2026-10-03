@@ -14,6 +14,7 @@ from agy_sessions.core.session import (
     toggle_pin_file,
     write_tag_file
 )
+from agy_sessions.core.db import invalidate_session, update_session_meta
 
 def ui_delete_session(session: Dict):
     print(f"\n{Colors.RED}{_t('warn_del_session', id=Colors.BOLD+session['id'][:8]+Colors.RESET)}")
@@ -24,6 +25,7 @@ def ui_delete_session(session: Dict):
     if confirm in ['y', 'yes', yes_word, yes_word[0] if yes_word else 'y']:
         try:
             safe_delete_session(session['path'])
+            invalidate_session(session['id'])
             print(f"{Colors.GREEN}{_t('success_del')}{Colors.RESET}")
         except Exception as e:
             print(f"{Colors.RED}{_t('error_del', e=e)}{Colors.RESET}")
@@ -44,6 +46,7 @@ def ui_clear_all_sessions(sessions: List[Dict]):
         for s in sessions:
             try:
                 safe_delete_session(s['path'])
+                invalidate_session(s['id'])
                 count += 1
             except Exception as e:
                 print(f"{Colors.RED}{_t('error_del_id', id=s['id'][:8], e=e)}{Colors.RESET}")
@@ -54,6 +57,7 @@ def ui_clear_all_sessions(sessions: List[Dict]):
 def ui_toggle_pin(session: Dict, pin: bool):
     try:
         toggle_pin_file(session['path'], pin)
+        update_session_meta(session['id'], pinned=pin)
         if pin:
             print(f"{Colors.GREEN}{_t('success_pinned', id=session['id'][:8])}{Colors.RESET}")
         else:
@@ -64,6 +68,7 @@ def ui_toggle_pin(session: Dict, pin: bool):
 def ui_set_tag(session: Dict, tag: str):
     try:
         write_tag_file(session['path'], tag)
+        update_session_meta(session['id'], tag=tag)
         if tag:
             print(f"{Colors.GREEN}{_t('success_tagged', id=session['id'][:8], tag=tag)}{Colors.RESET}")
         else:
