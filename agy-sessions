@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Antigravity (AGY) Session Manager
-A beautiful, dependency-free CLI tool to view and resume previous Antigravity AI sessions.
+A beautiful, dependency-free CLI tool to view, search, and resume previous Antigravity AI sessions.
 """
 
 import sys
@@ -9,9 +9,10 @@ import os
 import json
 import re
 import argparse
+import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 # Configuration Constants
 BRAIN_DIR = Path.home() / '.gemini' / 'antigravity-cli' / 'brain'
@@ -75,7 +76,7 @@ def extract_user_prompt(log_file: Path) -> str:
         pass
     return "No prompt available"
 
-def get_sessions(limit: int = 15) -> List[Dict]:
+def get_sessions(limit: int = 15, search_query: str = "") -> List[Dict]:
     """Fetch and parse all available Antigravity sessions in the brain directory."""
     sessions = []
     if not BRAIN_DIR.exists():
@@ -90,47 +91,55 @@ def get_sessions(limit: int = 15) -> List[Dict]:
             continue
 
         mtime = log_file.stat().st_mtime
+        prompt = extract_user_prompt(log_file)
+        
+        # Filtering by search query if provided
+        if search_query and search_query.lower() not in prompt.lower():
+            continue
+
         sessions.append({
             'id': conv_dir.name,
             'mtime': mtime,
             'relative': get_relative_time(mtime),
-            'prompt': extract_user_prompt(log_file)
+            'prompt': prompt,
+            'path': conv_dir
         })
 
     # Sort descending (most recent first)
     sessions.sort(key=lambda x: x['mtime'], reverse=True)
-    return sessions[:limit]
+    return sessions[:limit] if limit > 0 else sessions
 
-def print_beautiful_table(sessions: List[Dict]):
+def print_beautiful_table(sessions: List[Dict], search_query: str = ""):
     """Render a beautiful, dependency-free terminal UI table."""
-    # Clear screen for a clean UI experience
     print("\033[H\033[J", end="")
     
-    # Beautiful Header
+    title = 'Antigravity (AGY) Session Manager'
+    if search_query:
+        title += f' [Search: "{search_query}"]'
+
     print(f"\n{Colors.BOLD}{Colors.CYAN}╭{'─'*117}╮")
-    print(f"│ {'Antigravity (AGY) Session Manager'.center(115)} │")
+    print(f"│ {title.center(115)} │")
     print(f"╰{'─'*117}╯{Colors.RESET}")
 
-    # Column Headers
     print(f"{Colors.DIM}  {'#':<3} │ {'TIME':<12} │ {'SESSION':<8} │ {'FIRST PROMPT PREVIEW'}{Colors.RESET}")
     print(f"{Colors.DIM} ─────┼──────────────┼──────────┼─────────────────────────────────────────────────────────────────────────────────────{Colors.RESET}")
 
     for idx, s in enumerate(sessions, 1):
-        # Truncate prompt beautifully (now much longer: 83 chars)
         prompt = s['prompt']
         max_len = 83
         prompt_trunc = prompt[:max_len] + '...' if len(prompt) > max_len else prompt.ljust(max_len)
-        
-        # Shorten UUID to 8 characters for cleaner UI
         short_id = s['id'][:8]
         
-        # Colorize cells
         idx_str = f"{Colors.BOLD}{Colors.YELLOW}{idx:<3}{Colors.RESET}"
         time_str = f"{Colors.CYAN}{s['relative']:<12}{Colors.RESET}"
         cid_str = f"{Colors.GREEN}{short_id:<8}{Colors.RESET}"
-        prompt_str = f"{Colors.RESET}{prompt_trunc}"
         
-        # Print formatted row
+        # Highlight search query in prompt if exists
+        if search_query:
+            insensitive_query = re.compile(re.escape(search_query), re.IGNORECASE)
+            prompt_trunc = insensitive_query.sub(f"{Colors.BOLD}{Colors.MAGENTA}\g<0>{Colors.RESET}", prompt_trunc)
+
+        prompt_str = f"{Colors.RESET}{prompt_trunc}"
         print(f"  {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
 
     print(f"{Colors.DIM} ─────┴──────────────┴──────────┴─────────────────────────────────────────────────────────────────────────────────────{Colors.RESET}\n")
@@ -140,24 +149,47 @@ def resume_session(session_id: str):
     print(f"\n{Colors.GREEN}🚀 Resuming session {Colors.BOLD}{session_id}{Colors.RESET}...\n")
     os.execvp("agy", ["agy", "--conversation", session_id])
 
+def delete_session(session: Dict):
+    """Safely delete a session directory."""
+    print(f"\n{Colors.RED}⚠️  WARNING: You are about to delete session {Colors.BOLD}{session['id'][:8]}{Colors.RESET}")
+    print(f"Prompt: {Colors.DIM}{session['prompt']}{Colors.RESET}")
+    confirm = input(f"Are you sure? [y/N]: ").strip().lower()
+    
+    if confirm in ['y', 'yes']:
+        try:
+            shutil.rmtree(session['path'])
+            print(f"{Colors.GREEN}✅ Session deleted successfully.{Colors.RESET}")
+        except Exception as e:
+            print(f"{Colors.RED}❌ Error deleting session: {e}{Colors.RESET}")
+    else:
+        print(f"{Colors.DIM}Deletion cancelled.{Colors.RESET}")
+
 def main():
     parser = argparse.ArgumentParser(description="Beautiful Antigravity (agy) session manager")
     parser.add_argument("select", nargs="?", help="Session index (1-based) or Session ID to resume")
     parser.add_argument("-n", "--number", type=int, default=15, help="Number of recent sessions to show")
+    parser.add_argument("-s", "--search", type=str, help="Search sessions by prompt text")
+    parser.add_argument("-d", "--delete", action="store_true", help="Delete a session (prompts for selection)")
     args = parser.parse_args()
 
-    sessions = get_sessions(limit=args.number)
+    sessions = get_sessions(limit=args.number, search_query=args.search)
 
     if not sessions:
-        print(f"{Colors.YELLOW}No previous Antigravity sessions found.{Colors.RESET}")
+        if args.search:
+            print(f"{Colors.YELLOW}No sessions found matching '{args.search}'.{Colors.RESET}")
+        else:
+            print(f"{Colors.YELLOW}No previous Antigravity sessions found.{Colors.RESET}")
         sys.exit(0)
 
-    # Directly resume if an argument is passed
+    # Direct select
     if args.select:
         if args.select.isdigit():
             idx = int(args.select) - 1
             if 0 <= idx < len(sessions):
-                resume_session(sessions[idx]['id'])
+                if args.delete:
+                    delete_session(sessions[idx])
+                else:
+                    resume_session(sessions[idx]['id'])
             else:
                 print(f"{Colors.RED}Error: Index out of range.{Colors.RESET}")
                 sys.exit(1)
@@ -165,15 +197,20 @@ def main():
             resume_session(args.select)
         return
 
-    # Interactive Mode
-    print_beautiful_table(sessions)
+    print_beautiful_table(sessions, search_query=args.search)
 
     try:
-        choice = input(f" {Colors.BOLD}{Colors.MAGENTA}❯ Enter session number to resume {Colors.DIM}(or press Enter to exit): {Colors.RESET}").strip()
+        action_text = "delete" if args.delete else "resume"
+        color = Colors.RED if args.delete else Colors.MAGENTA
+        
+        choice = input(f" {Colors.BOLD}{color}❯ Enter session number to {action_text} {Colors.DIM}(or press Enter to exit): {Colors.RESET}").strip()
         if choice.isdigit():
             idx = int(choice) - 1
             if 0 <= idx < len(sessions):
-                resume_session(sessions[idx]['id'])
+                if args.delete:
+                    delete_session(sessions[idx])
+                else:
+                    resume_session(sessions[idx]['id'])
             else:
                 print(f"\n{Colors.YELLOW}Invalid selection.{Colors.RESET}")
     except (KeyboardInterrupt, EOFError):
