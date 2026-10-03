@@ -137,7 +137,7 @@ def print_beautiful_table(sessions: List[Dict], search_query: str = ""):
         # Highlight search query in prompt if exists
         if search_query:
             insensitive_query = re.compile(re.escape(search_query), re.IGNORECASE)
-            prompt_trunc = insensitive_query.sub(f"{Colors.BOLD}{Colors.MAGENTA}\g<0>{Colors.RESET}", prompt_trunc)
+            prompt_trunc = insensitive_query.sub(f"{Colors.BOLD}{Colors.MAGENTA}\\g<0>{Colors.RESET}", prompt_trunc)
 
         prompt_str = f"{Colors.RESET}{prompt_trunc}"
         print(f"  {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
