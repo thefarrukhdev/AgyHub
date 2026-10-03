@@ -85,9 +85,11 @@ def main():
     parser.add_argument("-s", "--search", type=str, help=_t('arg_search'))
     parser.add_argument("-d", "--delete", action="store_true", help=_t('arg_del'))
     parser.add_argument("-t", "--tag", type=str, help=_t('arg_tag'))
+    parser.add_argument("--untag", action="store_true", help=_t('arg_untag'))
     parser.add_argument("--pin", action="store_true", help=_t('arg_pin'))
     parser.add_argument("--unpin", action="store_true", help=_t('arg_unpin'))
     parser.add_argument("--clear-all", action="store_true", help=_t('arg_clear_all'))
+    parser.add_argument("--list", action="store_true", help=_t('arg_list'))
     parser.add_argument("--lang", choices=['en', 'ru', 'uz'], help=_t('arg_lang'))
     args = parser.parse_args()
 
@@ -98,30 +100,27 @@ def main():
         ui_clear_all_sessions(sessions)
         return
 
-    if args.select and (args.tag is not None or args.pin or args.unpin or args.delete):
+    if args.select:
         session = resolve_session_selection(args.select, sessions)
         if not session:
             print(f"{Colors.RED}{_t('error_not_found')}{Colors.RESET}")
             sys.exit(1)
             
-        if args.tag is not None:
-            ui_set_tag(session, args.tag)
-        if args.pin:
-            ui_toggle_pin(session, True)
-        if args.unpin:
-            ui_toggle_pin(session, False)
-        if args.delete:
-            ui_delete_session(session)
-        return
-
-    if args.select:
-        session = resolve_session_selection(args.select, sessions)
-        if session:
-            print(f"\n{Colors.GREEN}{_t('resume_msg', id=Colors.BOLD+session['id']+Colors.RESET)}\n")
-            execute_resume_session(session['id'])
-        else:
-            print(f"{Colors.RED}{_t('error_not_found')}{Colors.RESET}")
-            sys.exit(1)
+        if args.tag is not None or args.untag or args.pin or args.unpin or args.delete:
+            if args.tag is not None:
+                ui_set_tag(session, args.tag)
+            if args.untag:
+                ui_set_tag(session, "")
+            if args.pin:
+                ui_toggle_pin(session, True)
+            if args.unpin:
+                ui_toggle_pin(session, False)
+            if args.delete:
+                ui_delete_session(session)
+            return
+            
+        print(f"\n{Colors.GREEN}{_t('resume_msg', id=Colors.BOLD+session['id']+Colors.RESET)}\n")
+        execute_resume_session(session['id'])
         return
 
     if not sessions:

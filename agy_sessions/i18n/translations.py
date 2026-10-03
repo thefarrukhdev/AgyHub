@@ -54,9 +54,11 @@ TRANSLATIONS = {
         'arg_search': 'Search sessions by prompt text or tag',
         'arg_del': 'Delete a session (prompts for selection)',
         'arg_tag': 'Assign a custom name/tag to a session',
+        'arg_untag': 'Remove a tag from a session',
         'arg_pin': 'Pin a session',
         'arg_unpin': 'Unpin a session',
         'arg_clear_all': 'Delete all sessions',
+        'arg_list': 'List all sessions (default)',
         'arg_lang': 'Set language {en, ru, uz}'
     },
     'ru': {
@@ -114,9 +116,11 @@ TRANSLATIONS = {
         'arg_search': 'Поиск сессий по тексту промпта или тегу',
         'arg_del': 'Удалить сессию (запрашивает выбор)',
         'arg_tag': 'Назначить пользовательское имя/тег сессии',
+        'arg_untag': 'Удалить тег с сессии',
         'arg_pin': 'Закрепить сессию',
         'arg_unpin': 'Открепить сессию',
         'arg_clear_all': 'Удалить все сессии',
+        'arg_list': 'Показать список всех сессий',
         'arg_lang': 'Установить язык {en, ru, uz}'
     },
     'uz': {
@@ -174,9 +178,11 @@ TRANSLATIONS = {
         'arg_search': 'Sessiyalarni prompt matni yoki teg bo\'yicha qidirish',
         'arg_del': 'Sessiyani o\'chirish (tanlashni so\'raydi)',
         'arg_tag': 'Sessiyaga maxsus nom/teg berish',
+        'arg_untag': 'Sessiyadan tegni olib tashlash',
         'arg_pin': 'Sessiyani qadab qo\'yish',
         'arg_unpin': 'Sessiyani qadalgandan olib tashlash',
         'arg_clear_all': 'Barcha sessiyalarni o\'chirish',
+        'arg_list': 'Barcha sessiyalarni ro\'yxatdan o\'tkazish',
         'arg_lang': 'Tilni o\'rnatish {en, ru, uz}'
     }
 }
