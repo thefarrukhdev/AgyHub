@@ -16,6 +16,232 @@ from typing import List, Dict, Optional, Tuple
 
 # Configuration Constants
 BRAIN_DIR = Path.home() / '.gemini' / 'antigravity-cli' / 'brain'
+CONFIG_FILE = Path.home() / '.gemini' / 'agy_sessions_config.json'
+
+TRANSLATIONS = {
+    'en': {
+        'title': 'Antigravity (AGY) Session Manager',
+        'search_suffix': ' [Search: "{query}"]',
+        'total_chats_page': 'Total Chats: {count} | Page {page}/{total}',
+        'total_chats': 'Total Chats: {count}',
+        'col_time': 'TIME',
+        'col_id_tag': 'ID / TAG',
+        'col_preview': 'FIRST PROMPT PREVIEW',
+        'just_now': 'Just now',
+        'min_ago': '{n} min ago',
+        'hrs_ago': '{n} hrs ago',
+        'yesterday': 'Yesterday',
+        'days_ago': '{n} days ago',
+        'prompt_no_prompt': 'No prompt available',
+        'resume_msg': '🚀 Resuming session {id}...',
+        'new_msg': '✨ Starting a new session...',
+        'warn_del_session': '⚠️  WARNING: You are about to delete session {id}',
+        'prompt_label': 'Prompt: {prompt}',
+        'confirm_del': 'Are you sure? [y/N]: ',
+        'success_del': '✅ Session deleted successfully.',
+        'error_del': '❌ Error deleting session: {e}',
+        'cancel_del': 'Deletion cancelled.',
+        'no_sessions_clear': 'No sessions to clear.',
+        'warn_del_all': '⚠️  WARNING: You are about to delete ALL {n} sessions.',
+        'confirm_del_all': "Are you absolutely sure? Type '{yes}' to confirm: ",
+        'yes_word': 'YES',
+        'error_del_id': '❌ Error deleting {id}: {e}',
+        'success_del_all': '✅ {n} sessions deleted successfully.',
+        'cancel_clear_all': 'Clear all cancelled.',
+        'success_pinned': '✅ Session {id} pinned.',
+        'success_unpinned': '✅ Session {id} unpinned.',
+        'error_pin': '❌ Error updating pin: {e}',
+        'success_tagged': "✅ Session {id} tagged as '{tag}'.",
+        'success_untagged': '✅ Tag removed from session {id}.',
+        'error_tag': '❌ Error updating tag: {e}',
+        'error_not_found': 'Error: Session not found.',
+        'no_sessions_search': "No sessions found matching '{search}'. Total chats: {count}",
+        'no_sessions': 'No previous Antigravity sessions found.',
+        'prompt_new': "❯ Type 'n' to start a new chat (or Enter to exit): ",
+        'action_delete': 'delete',
+        'action_resume': 'resume',
+        'prompt_actions': "number to {action}",
+        'prompt_new_opt': "'n' for new",
+        'prompt_nav': "'>' next, '<' prev",
+        'prompt_enter': "❯ Enter {actions} (or Enter to exit): ",
+        'invalid_sel': 'Invalid selection.',
+        'invalid_cmd': 'Invalid command.',
+        'cancelled': 'Cancelled.',
+        'arg_desc': 'Beautiful Antigravity (agy) session manager',
+        'arg_select': 'Session index (1-based) or Session ID to resume',
+        'arg_num': 'Number of sessions to show per page',
+        'arg_page': 'Page number to display',
+        'arg_search': 'Search sessions by prompt text or tag',
+        'arg_del': 'Delete a session (prompts for selection)',
+        'arg_tag': 'Assign a custom name/tag to a session',
+        'arg_pin': 'Pin a session',
+        'arg_unpin': 'Unpin a session',
+        'arg_clear_all': 'Delete all sessions',
+        'arg_lang': 'Set language {en, ru, uz}'
+    },
+    'ru': {
+        'title': 'Менеджер сессий Antigravity (AGY)',
+        'search_suffix': ' [Поиск: "{query}"]',
+        'total_chats_page': 'Всего чатов: {count} | Стр. {page}/{total}',
+        'total_chats': 'Всего чатов: {count}',
+        'col_time': 'ВРЕМЯ',
+        'col_id_tag': 'ID / ТЕГ',
+        'col_preview': 'ПРЕДПРОСМОТР ПЕРВОГО ПРОМПТА',
+        'just_now': 'Только что',
+        'min_ago': '{n} мин назад',
+        'hrs_ago': '{n} ч назад',
+        'yesterday': 'Вчера',
+        'days_ago': '{n} дн назад',
+        'prompt_no_prompt': 'Нет доступного промпта',
+        'resume_msg': '🚀 Возобновление сессии {id}...',
+        'new_msg': '✨ Запуск новой сессии...',
+        'warn_del_session': '⚠️  ВНИМАНИЕ: Вы собираетесь удалить сессию {id}',
+        'prompt_label': 'Промпт: {prompt}',
+        'confirm_del': 'Вы уверены? [y/N]: ',
+        'success_del': '✅ Сессия успешно удалена.',
+        'error_del': '❌ Ошибка при удалении сессии: {e}',
+        'cancel_del': 'Удаление отменено.',
+        'no_sessions_clear': 'Нет сессий для удаления.',
+        'warn_del_all': '⚠️  ВНИМАНИЕ: Вы собираетесь удалить ВСЕ {n} сессий.',
+        'confirm_del_all': "Вы абсолютно уверены? Введите '{yes}' для подтверждения: ",
+        'yes_word': 'ДА',
+        'error_del_id': '❌ Ошибка удаления {id}: {e}',
+        'success_del_all': '✅ Успешно удалено {n} сессий.',
+        'cancel_clear_all': 'Очистка всех сессий отменена.',
+        'success_pinned': '✅ Сессия {id} закреплена.',
+        'success_unpinned': '✅ Сессия {id} откреплена.',
+        'error_pin': '❌ Ошибка обновления закрепления: {e}',
+        'success_tagged': "✅ Сессии {id} присвоен тег '{tag}'.",
+        'success_untagged': '✅ Тег удален с сессии {id}.',
+        'error_tag': '❌ Ошибка обновления тега: {e}',
+        'error_not_found': 'Ошибка: Сессия не найдена.',
+        'no_sessions_search': "Не найдено сессий по запросу '{search}'. Всего чатов: {count}",
+        'no_sessions': 'Предыдущие сессии Antigravity не найдены.',
+        'prompt_new': "❯ Введите 'n' для нового чата (или Enter для выхода): ",
+        'action_delete': 'удалить',
+        'action_resume': 'возобновить',
+        'prompt_actions': "номер чтобы {action}",
+        'prompt_new_opt': "'n' для новой",
+        'prompt_nav': "'>' след, '<' пред",
+        'prompt_enter': "❯ Введите {actions} (или Enter для выхода): ",
+        'invalid_sel': 'Неверный выбор.',
+        'invalid_cmd': 'Неверная команда.',
+        'cancelled': 'Отменено.',
+        'arg_desc': 'Красивый менеджер сессий Antigravity (agy)',
+        'arg_select': 'Индекс сессии (от 1) или ID для возобновления',
+        'arg_num': 'Количество сессий на страницу',
+        'arg_page': 'Номер страницы для отображения',
+        'arg_search': 'Поиск сессий по тексту промпта или тегу',
+        'arg_del': 'Удалить сессию (запрашивает выбор)',
+        'arg_tag': 'Назначить пользовательское имя/тег сессии',
+        'arg_pin': 'Закрепить сессию',
+        'arg_unpin': 'Открепить сессию',
+        'arg_clear_all': 'Удалить все сессии',
+        'arg_lang': 'Установить язык {en, ru, uz}'
+    },
+    'uz': {
+        'title': 'Antigravity (AGY) Sessiya Menejeri',
+        'search_suffix': ' [Qidiruv: "{query}"]',
+        'total_chats_page': 'Jami chatlar: {count} | Sahifa {page}/{total}',
+        'total_chats': 'Jami chatlar: {count}',
+        'col_time': 'VAQT',
+        'col_id_tag': 'ID / TEG',
+        'col_preview': 'BIRINCHI PROMPT KO\'RINISHI',
+        'just_now': 'Hozirgina',
+        'min_ago': '{n} daq oldin',
+        'hrs_ago': '{n} soat oldin',
+        'yesterday': 'Kecha',
+        'days_ago': '{n} kun oldin',
+        'prompt_no_prompt': 'Prompt mavjud emas',
+        'resume_msg': '🚀 {id} sessiyasi davom ettirilmoqda...',
+        'new_msg': '✨ Yangi sessiya boshlanmoqda...',
+        'warn_del_session': '⚠️  DIQQAT: Siz {id} sessiyasini o\'chirmoqchisiz',
+        'prompt_label': 'Prompt: {prompt}',
+        'confirm_del': 'Ishonchingiz komilmi? [y/N]: ',
+        'success_del': '✅ Sessiya muvaffaqiyatli o\'chirildi.',
+        'error_del': '❌ Sessiyani o\'chirishda xatolik: {e}',
+        'cancel_del': 'O\'chirish bekor qilindi.',
+        'no_sessions_clear': 'O\'chirish uchun sessiyalar yo\'q.',
+        'warn_del_all': '⚠️  DIQQAT: Siz BARCHA {n} ta sessiyani o\'chirmoqchisiz.',
+        'confirm_del_all': "Haqiqatan ham ishonchingiz komilmi? Tasdiqlash uchun '{yes}' deb yozing: ",
+        'yes_word': 'HA',
+        'error_del_id': '❌ {id} ni o\'chirishda xatolik: {e}',
+        'success_del_all': '✅ {n} ta sessiya muvaffaqiyatli o\'chirildi.',
+        'cancel_clear_all': 'Barchasini tozalash bekor qilindi.',
+        'success_pinned': '✅ {id} sessiyasi qadalgan.',
+        'success_unpinned': '✅ {id} sessiyasi qadalgandan olib tashlandi.',
+        'error_pin': '❌ Qadashni yangilashda xatolik: {e}',
+        'success_tagged': "✅ {id} sessiyasiga '{tag}' tegi berildi.",
+        'success_untagged': '✅ {id} sessiyasidan teg olib tashlandi.',
+        'error_tag': '❌ Tegni yangilashda xatolik: {e}',
+        'error_not_found': 'Xato: Sessiya topilmadi.',
+        'no_sessions_search': "'{search}' bo'yicha sessiyalar topilmadi. Jami chatlar: {count}",
+        'no_sessions': 'Oldingi Antigravity sessiyalari topilmadi.',
+        'prompt_new': "❯ Yangi chat boshlash uchun 'n' tugmasini bosing (yoki chiqish uchun Enter): ",
+        'action_delete': 'o\'chirish',
+        'action_resume': 'davom ettirish',
+        'prompt_actions': "{action} uchun raqam",
+        'prompt_new_opt': "yangi uchun 'n'",
+        'prompt_nav': "'>' keyingi, '<' oldingi",
+        'prompt_enter': "❯ {actions} kiriting (yoki chiqish uchun Enter): ",
+        'invalid_sel': 'Noto\'g\'ri tanlov.',
+        'invalid_cmd': 'Noto\'g\'ri buyruq.',
+        'cancelled': 'Bekor qilindi.',
+        'arg_desc': 'Chiroyli Antigravity (agy) sessiya menejeri',
+        'arg_select': 'Sessiya indeksi (1 dan boshlanadi) yoki davom ettirish uchun Sessiya ID',
+        'arg_num': 'Har bir sahifada ko\'rsatiladigan sessiyalar soni',
+        'arg_page': 'Ko\'rsatiladigan sahifa raqami',
+        'arg_search': 'Sessiyalarni prompt matni yoki teg bo\'yicha qidirish',
+        'arg_del': 'Sessiyani o\'chirish (tanlashni so\'raydi)',
+        'arg_tag': 'Sessiyaga maxsus nom/teg berish',
+        'arg_pin': 'Sessiyani qadab qo\'yish',
+        'arg_unpin': 'Sessiyani qadalgandan olib tashlash',
+        'arg_clear_all': 'Barcha sessiyalarni o\'chirish',
+        'arg_lang': 'Tilni o\'rnatish {en, ru, uz}'
+    }
+}
+
+CURRENT_LANG = 'en'
+
+def load_language(cli_lang: Optional[str] = None):
+    global CURRENT_LANG
+    
+    # 1. CLI arg explicitly overrides and saves
+    if cli_lang in TRANSLATIONS:
+        CURRENT_LANG = cli_lang
+        try:
+            CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+                json.dump({'lang': CURRENT_LANG}, f)
+        except Exception:
+            pass
+        return
+
+    # 2. Config file
+    try:
+        if CONFIG_FILE.exists():
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                conf = json.load(f)
+                if conf.get('lang') in TRANSLATIONS:
+                    CURRENT_LANG = conf['lang']
+                    return
+    except Exception:
+        pass
+
+    # 3. Auto-detect from env var
+    lang_env = os.environ.get('LANG', '').lower()
+    if lang_env.startswith('ru'):
+        CURRENT_LANG = 'ru'
+    elif lang_env.startswith('uz'):
+        CURRENT_LANG = 'uz'
+    else:
+        CURRENT_LANG = 'en'
+
+def _t(key: str, **kwargs) -> str:
+    template = TRANSLATIONS.get(CURRENT_LANG, TRANSLATIONS['en']).get(key, TRANSLATIONS['en'].get(key, key))
+    if kwargs:
+        return template.format(**kwargs)
+    return template
 
 # Modern ANSI Colors for Terminal UI
 class Colors:
@@ -33,14 +259,14 @@ def get_relative_time(mtime: float) -> str:
     """Convert a timestamp into a human-readable relative time format."""
     diff = datetime.now() - datetime.fromtimestamp(mtime)
     if diff < timedelta(minutes=1):
-        return "Just now"
+        return _t('just_now')
     if diff < timedelta(hours=1):
-        return f"{diff.seconds // 60} min ago"
+        return _t('min_ago', n=diff.seconds // 60)
     if diff < timedelta(days=1):
-        return f"{diff.seconds // 3600} hrs ago"
+        return _t('hrs_ago', n=diff.seconds // 3600)
     if diff < timedelta(days=2):
-        return "Yesterday"
-    return f"{diff.days} days ago"
+        return _t('yesterday')
+    return _t('days_ago', n=diff.days)
 
 def extract_user_prompt(log_file: Path) -> str:
     """Safely extract the first meaningful user prompt from a session log file."""
@@ -74,7 +300,7 @@ def extract_user_prompt(log_file: Path) -> str:
                     continue
     except Exception:
         pass
-    return "No prompt available"
+    return _t('prompt_no_prompt')
 
 def get_sessions(search_query: str = "") -> List[Dict]:
     """Fetch and parse all available Antigravity sessions in the brain directory."""
@@ -131,18 +357,22 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
     """Render a beautiful, dependency-free terminal UI table."""
     print("\033[H\033[J", end="")
     
-    title = 'Antigravity (AGY) Session Manager'
+    title = _t('title')
     if search_query:
-        title += f' [Search: "{search_query}"]'
+        title += _t('search_suffix', query=search_query)
         
-    stats_line = f"Total Chats: {total_count} | Page {page}/{total_pages}" if total_pages > 0 else f"Total Chats: {total_count}"
+    stats_line = _t('total_chats_page', count=total_count, page=page, total=total_pages) if total_pages > 0 else _t('total_chats', count=total_count)
 
     print(f"\n{Colors.BOLD}{Colors.CYAN}╭{'─'*117}╮")
     print(f"│ {title.center(115)} │")
     print(f"│ {stats_line.center(115)} │")
     print(f"╰{'─'*117}╯{Colors.RESET}")
 
-    print(f"{Colors.DIM}  {'#':<3} │ {'TIME':<12} │ {'ID / TAG':<20} │ {'FIRST PROMPT PREVIEW'}{Colors.RESET}")
+    col_time = _t('col_time')
+    col_id_tag = _t('col_id_tag')
+    col_preview = _t('col_preview')
+
+    print(f"{Colors.DIM}  {'#':<3} │ {col_time:<12} │ {col_id_tag:<20} │ {col_preview}{Colors.RESET}")
     print(f"{Colors.DIM} ─────┼──────────────┼──────────────────────┼───────────────────────────────────────────────────────────────────────{Colors.RESET}")
 
     for i, s in enumerate(sessions):
@@ -178,12 +408,12 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
 
 def resume_session(session_id: str):
     """Execute the AGY command to resume a specific session."""
-    print(f"\n{Colors.GREEN}🚀 Resuming session {Colors.BOLD}{session_id}{Colors.RESET}...\n")
+    print(f"\n{Colors.GREEN}{_t('resume_msg', id=Colors.BOLD+session_id+Colors.RESET)}\n")
     os.execvp("agy", ["agy", "--conversation", session_id])
 
 def new_session():
     """Start a completely new AGY session."""
-    print(f"\n{Colors.GREEN}✨ Starting a new session...{Colors.RESET}\n")
+    print(f"\n{Colors.GREEN}{_t('new_msg')}{Colors.RESET}\n")
     os.execvp("agy", ["agy"])
 
 def _safe_delete_session(path: Path):
@@ -195,65 +425,67 @@ def _safe_delete_session(path: Path):
 
 def delete_session(session: Dict):
     """Safely delete a session directory."""
-    print(f"\n{Colors.RED}⚠️  WARNING: You are about to delete session {Colors.BOLD}{session['id'][:8]}{Colors.RESET}")
-    print(f"Prompt: {Colors.DIM}{session['prompt']}{Colors.RESET}")
-    confirm = input(f"Are you sure? [y/N]: ").strip().lower()
+    print(f"\n{Colors.RED}{_t('warn_del_session', id=Colors.BOLD+session['id'][:8]+Colors.RESET)}")
+    print(f"{_t('prompt_label', prompt=Colors.DIM+session['prompt']+Colors.RESET)}")
+    confirm = input(_t('confirm_del')).strip().lower()
     
-    if confirm in ['y', 'yes']:
+    yes_word = _t('yes_word').lower()
+    if confirm in ['y', 'yes', yes_word, yes_word[0] if yes_word else 'y']:
         try:
             _safe_delete_session(session['path'])
-            print(f"{Colors.GREEN}✅ Session deleted successfully.{Colors.RESET}")
+            print(f"{Colors.GREEN}{_t('success_del')}{Colors.RESET}")
         except Exception as e:
-            print(f"{Colors.RED}❌ Error deleting session: {e}{Colors.RESET}")
+            print(f"{Colors.RED}{_t('error_del', e=e)}{Colors.RESET}")
     else:
-        print(f"{Colors.DIM}Deletion cancelled.{Colors.RESET}")
+        print(f"{Colors.DIM}{_t('cancel_del')}{Colors.RESET}")
 
 def clear_all_sessions(sessions: List[Dict]):
     """Safely delete all sessions."""
     if not sessions:
-        print(f"{Colors.YELLOW}No sessions to clear.{Colors.RESET}")
+        print(f"{Colors.YELLOW}{_t('no_sessions_clear')}{Colors.RESET}")
         return
         
-    print(f"\n{Colors.RED}⚠️  WARNING: You are about to delete ALL {len(sessions)} sessions.{Colors.RESET}")
-    confirm = input(f"Are you absolutely sure? Type 'YES' to confirm: ").strip()
+    print(f"\n{Colors.RED}{_t('warn_del_all', n=len(sessions))}{Colors.RESET}")
+    yes_word = _t('yes_word')
+    confirm = input(_t('confirm_del_all', yes=yes_word)).strip()
     
-    if confirm == 'YES':
+    if confirm == yes_word:
         count = 0
         for s in sessions:
             try:
                 _safe_delete_session(s['path'])
                 count += 1
             except Exception as e:
-                print(f"{Colors.RED}❌ Error deleting {s['id'][:8]}: {e}{Colors.RESET}")
-        print(f"{Colors.GREEN}✅ {count} sessions deleted successfully.{Colors.RESET}")
+                print(f"{Colors.RED}{_t('error_del_id', id=s['id'][:8], e=e)}{Colors.RESET}")
+        print(f"{Colors.GREEN}{_t('success_del_all', n=count)}{Colors.RESET}")
     else:
-        print(f"{Colors.DIM}Clear all cancelled.{Colors.RESET}")
+        print(f"{Colors.DIM}{_t('cancel_clear_all')}{Colors.RESET}")
 
 def toggle_pin(session: Dict, pin: bool):
     pin_file = session['path'] / '.agy_pinned'
     try:
         if pin:
             pin_file.touch()
-            print(f"{Colors.GREEN}✅ Session {session['id'][:8]} pinned.{Colors.RESET}")
+            print(f"{Colors.GREEN}{_t('success_pinned', id=session['id'][:8])}{Colors.RESET}")
         else:
             if pin_file.exists():
                 pin_file.unlink()
-            print(f"{Colors.GREEN}✅ Session {session['id'][:8]} unpinned.{Colors.RESET}")
+            print(f"{Colors.GREEN}{_t('success_unpinned', id=session['id'][:8])}{Colors.RESET}")
     except Exception as e:
-        print(f"{Colors.RED}❌ Error updating pin: {e}{Colors.RESET}")
+        print(f"{Colors.RED}{_t('error_pin', e=e)}{Colors.RESET}")
 
 def set_tag(session: Dict, tag: str):
     tag_file = session['path'] / '.agy_tag'
     try:
         if tag:
             tag_file.write_text(tag, encoding='utf-8')
-            print(f"{Colors.GREEN}✅ Session {session['id'][:8]} tagged as '{tag}'.{Colors.RESET}")
+            print(f"{Colors.GREEN}{_t('success_tagged', id=session['id'][:8], tag=tag)}{Colors.RESET}")
         else:
             if tag_file.exists():
                 tag_file.unlink()
-            print(f"{Colors.GREEN}✅ Tag removed from session {session['id'][:8]}.{Colors.RESET}")
+            print(f"{Colors.GREEN}{_t('success_untagged', id=session['id'][:8])}{Colors.RESET}")
     except Exception as e:
-        print(f"{Colors.RED}❌ Error updating tag: {e}{Colors.RESET}")
+        print(f"{Colors.RED}{_t('error_tag', e=e)}{Colors.RESET}")
 
 def resolve_session_selection(select_str: str, sessions: List[Dict]) -> Optional[Dict]:
     """Resolve a user input string (index or ID) to a session."""
@@ -276,16 +508,28 @@ def resolve_session_selection(select_str: str, sessions: List[Dict]) -> Optional
     return None
 
 def main():
-    parser = argparse.ArgumentParser(description="Beautiful Antigravity (agy) session manager")
-    parser.add_argument("select", nargs="?", help="Session index (1-based) or Session ID to resume")
-    parser.add_argument("-n", "--number", type=int, default=15, help="Number of sessions to show per page")
-    parser.add_argument("-p", "--page", type=int, default=1, help="Page number to display")
-    parser.add_argument("-s", "--search", type=str, help="Search sessions by prompt text or tag")
-    parser.add_argument("-d", "--delete", action="store_true", help="Delete a session (prompts for selection)")
-    parser.add_argument("-t", "--tag", type=str, help="Assign a custom name/tag to a session")
-    parser.add_argument("--pin", action="store_true", help="Pin a session")
-    parser.add_argument("--unpin", action="store_true", help="Unpin a session")
-    parser.add_argument("--clear-all", action="store_true", help="Delete all sessions")
+    # Load language first to translate argparse if possible, though argparse initialization happens here.
+    # We will do a two-pass args parse, or just check sys.argv for --lang early.
+    cli_lang = None
+    if '--lang' in sys.argv:
+        try:
+            cli_lang = sys.argv[sys.argv.index('--lang') + 1]
+        except IndexError:
+            pass
+            
+    load_language(cli_lang)
+    
+    parser = argparse.ArgumentParser(description=_t('arg_desc'))
+    parser.add_argument("select", nargs="?", help=_t('arg_select'))
+    parser.add_argument("-n", "--number", type=int, default=15, help=_t('arg_num'))
+    parser.add_argument("-p", "--page", type=int, default=1, help=_t('arg_page'))
+    parser.add_argument("-s", "--search", type=str, help=_t('arg_search'))
+    parser.add_argument("-d", "--delete", action="store_true", help=_t('arg_del'))
+    parser.add_argument("-t", "--tag", type=str, help=_t('arg_tag'))
+    parser.add_argument("--pin", action="store_true", help=_t('arg_pin'))
+    parser.add_argument("--unpin", action="store_true", help=_t('arg_unpin'))
+    parser.add_argument("--clear-all", action="store_true", help=_t('arg_clear_all'))
+    parser.add_argument("--lang", choices=['en', 'ru', 'uz'], help=_t('arg_lang'))
     args = parser.parse_args()
 
     sessions = get_sessions(search_query=args.search)
@@ -299,7 +543,7 @@ def main():
     if args.select and (args.tag is not None or args.pin or args.unpin or args.delete):
         session = resolve_session_selection(args.select, sessions)
         if not session:
-            print(f"{Colors.RED}Error: Session not found.{Colors.RESET}")
+            print(f"{Colors.RED}{_t('error_not_found')}{Colors.RESET}")
             sys.exit(1)
             
         if args.tag is not None:
@@ -318,17 +562,17 @@ def main():
         if session:
             resume_session(session['id'])
         else:
-            print(f"{Colors.RED}Error: Session not found.{Colors.RESET}")
+            print(f"{Colors.RED}{_t('error_not_found')}{Colors.RESET}")
             sys.exit(1)
         return
 
     if not sessions:
         if args.search:
-            print(f"{Colors.YELLOW}No sessions found matching '{args.search}'. Total chats: {total_count}{Colors.RESET}")
+            print(f"{Colors.YELLOW}{_t('no_sessions_search', search=args.search, count=total_count)}{Colors.RESET}")
         else:
-            print(f"{Colors.YELLOW}No previous Antigravity sessions found.{Colors.RESET}")
+            print(f"{Colors.YELLOW}{_t('no_sessions')}{Colors.RESET}")
         
-        choice = input(f"\n{Colors.MAGENTA}❯ Type 'n' to start a new chat (or Enter to exit): {Colors.RESET}").strip().lower()
+        choice = input(f"\n{Colors.MAGENTA}{_t('prompt_new')}{Colors.RESET}").strip().lower()
         if choice == 'n':
             new_session()
         sys.exit(0)
@@ -337,7 +581,7 @@ def main():
     page = args.page
     limit = args.number if args.number > 0 else total_count
     interactive_delete = args.delete
-    action_text = "delete" if interactive_delete else "resume"
+    action_text = _t('action_delete') if interactive_delete else _t('action_resume')
     color = Colors.RED if interactive_delete else Colors.MAGENTA
 
     while True:
@@ -351,12 +595,12 @@ def main():
         print_beautiful_table(displayed_sessions, total_count=total_count, start_idx=start_idx, page=page, total_pages=total_pages, search_query=args.search)
 
         try:
-            prompt_actions = [f"number to {action_text}", "'n' for new"]
+            prompt_actions = [_t('prompt_actions', action=action_text), _t('prompt_new_opt')]
             if total_pages > 1:
-                prompt_actions.append("'>' next, '<' prev")
+                prompt_actions.append(_t('prompt_nav'))
             prompt_str = ", ".join(prompt_actions)
             
-            choice = input(f" {Colors.BOLD}{color}❯ Enter {prompt_str} {Colors.DIM}(or Enter to exit): {Colors.RESET}").strip().lower()
+            choice = input(f" {Colors.BOLD}{color}{_t('prompt_enter', actions=prompt_str)}{Colors.RESET}").strip().lower()
             
             if not choice:
                 break
@@ -381,11 +625,11 @@ def main():
                         resume_session(sessions[idx]['id'])
                         break
                 else:
-                    print(f"\n{Colors.YELLOW}Invalid selection.{Colors.RESET}")
+                    print(f"\n{Colors.YELLOW}{_t('invalid_sel')}{Colors.RESET}")
             else:
-                print(f"\n{Colors.YELLOW}Invalid command.{Colors.RESET}")
+                print(f"\n{Colors.YELLOW}{_t('invalid_cmd')}{Colors.RESET}")
         except (KeyboardInterrupt, EOFError):
-            print(f"\n{Colors.DIM}Cancelled.{Colors.RESET}")
+            print(f"\n{Colors.DIM}{_t('cancelled')}{Colors.RESET}")
             break
 
 if __name__ == "__main__":
