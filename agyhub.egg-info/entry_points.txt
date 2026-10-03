@@ -1,0 +1,2 @@
+[console_scripts]
+agy-sessions = agy_sessions.cli:main
