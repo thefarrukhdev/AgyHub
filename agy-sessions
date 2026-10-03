@@ -93,23 +93,32 @@ def get_sessions(search_query: str = "") -> List[Dict]:
         mtime = log_file.stat().st_mtime
         prompt = extract_user_prompt(log_file)
         
+        pinned = (conv_dir / '.agy_pinned').exists()
+        
+        tag_file = conv_dir / '.agy_tag'
+        tag = tag_file.read_text(encoding='utf-8').strip() if tag_file.exists() else None
+        
         # Filtering by search query if provided
-        if search_query and search_query.lower() not in prompt.lower():
-            continue
+        if search_query:
+            sq = search_query.lower()
+            if sq not in prompt.lower() and (not tag or sq not in tag.lower()):
+                continue
 
         sessions.append({
             'id': conv_dir.name,
             'mtime': mtime,
             'relative': get_relative_time(mtime),
             'prompt': prompt,
-            'path': conv_dir
+            'path': conv_dir,
+            'pinned': pinned,
+            'tag': tag
         })
 
-    # Sort descending (most recent first)
-    sessions.sort(key=lambda x: x['mtime'], reverse=True)
+    # Sort descending: pinned first, then by most recent mtime
+    sessions.sort(key=lambda x: (not x['pinned'], -x['mtime']))
     return sessions
 
-def print_beautiful_table(sessions: List[Dict], total_count: int, search_query: str = ""):
+def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int, page: int, total_pages: int, search_query: str = ""):
     """Render a beautiful, dependency-free terminal UI table."""
     print("\033[H\033[J", end="")
     
@@ -117,25 +126,35 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, search_query: 
     if search_query:
         title += f' [Search: "{search_query}"]'
         
-    stats_line = f"Total Chats: {total_count} | Shown: {len(sessions)}"
+    stats_line = f"Total Chats: {total_count} | Page {page}/{total_pages}" if total_pages > 0 else f"Total Chats: {total_count}"
 
     print(f"\n{Colors.BOLD}{Colors.CYAN}╭{'─'*117}╮")
     print(f"│ {title.center(115)} │")
     print(f"│ {stats_line.center(115)} │")
     print(f"╰{'─'*117}╯{Colors.RESET}")
 
-    print(f"{Colors.DIM}  {'#':<3} │ {'TIME':<12} │ {'SESSION':<8} │ {'FIRST PROMPT PREVIEW'}{Colors.RESET}")
-    print(f"{Colors.DIM} ─────┼──────────────┼──────────┼─────────────────────────────────────────────────────────────────────────────────────{Colors.RESET}")
+    print(f"{Colors.DIM}  {'#':<3} │ {'TIME':<12} │ {'ID / TAG':<20} │ {'FIRST PROMPT PREVIEW'}{Colors.RESET}")
+    print(f"{Colors.DIM} ─────┼──────────────┼──────────────────────┼───────────────────────────────────────────────────────────────────────{Colors.RESET}")
 
-    for idx, s in enumerate(sessions, 1):
+    for i, s in enumerate(sessions):
+        idx = start_idx + i + 1
         prompt = s['prompt']
-        max_len = 83
+        max_len = 71
         prompt_trunc = prompt[:max_len] + '...' if len(prompt) > max_len else prompt.ljust(max_len)
         short_id = s['id'][:8]
         
+        pin_indicator = "📌 " if s['pinned'] else ""
+        if s['tag']:
+            tag_trunc = s['tag'][:10] + '..' if len(s['tag']) > 12 else s['tag']
+            id_tag_str = f"{pin_indicator}{tag_trunc} ({short_id})"
+        else:
+            id_tag_str = f"{pin_indicator}{short_id}"
+            
+        id_tag_str = id_tag_str.ljust(20)
+        
         idx_str = f"{Colors.BOLD}{Colors.YELLOW}{idx:<3}{Colors.RESET}"
         time_str = f"{Colors.CYAN}{s['relative']:<12}{Colors.RESET}"
-        cid_str = f"{Colors.GREEN}{short_id:<8}{Colors.RESET}"
+        cid_str = f"{Colors.GREEN}{id_tag_str}{Colors.RESET}"
         
         # Highlight search query in prompt if exists
         if search_query:
@@ -145,7 +164,7 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, search_query: 
         prompt_str = f"{Colors.RESET}{prompt_trunc}"
         print(f"  {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
 
-    print(f"{Colors.DIM} ─────┴──────────────┴──────────┴─────────────────────────────────────────────────────────────────────────────────────{Colors.RESET}\n")
+    print(f"{Colors.DIM} ─────┴──────────────┴──────────────────────┴───────────────────────────────────────────────────────────────────────{Colors.RESET}\n")
 
 def resume_session(session_id: str):
     """Execute the AGY command to resume a specific session."""
@@ -172,22 +191,107 @@ def delete_session(session: Dict):
     else:
         print(f"{Colors.DIM}Deletion cancelled.{Colors.RESET}")
 
+def clear_all_sessions(sessions: List[Dict]):
+    """Safely delete all sessions."""
+    if not sessions:
+        print(f"{Colors.YELLOW}No sessions to clear.{Colors.RESET}")
+        return
+        
+    print(f"\n{Colors.RED}⚠️  WARNING: You are about to delete ALL {len(sessions)} sessions.{Colors.RESET}")
+    confirm = input(f"Are you absolutely sure? Type 'YES' to confirm: ").strip()
+    
+    if confirm == 'YES':
+        count = 0
+        for s in sessions:
+            try:
+                shutil.rmtree(s['path'])
+                count += 1
+            except Exception as e:
+                print(f"{Colors.RED}❌ Error deleting {s['id'][:8]}: {e}{Colors.RESET}")
+        print(f"{Colors.GREEN}✅ {count} sessions deleted successfully.{Colors.RESET}")
+    else:
+        print(f"{Colors.DIM}Clear all cancelled.{Colors.RESET}")
+
+def toggle_pin(session: Dict, pin: bool):
+    pin_file = session['path'] / '.agy_pinned'
+    if pin:
+        pin_file.touch()
+        print(f"{Colors.GREEN}✅ Session {session['id'][:8]} pinned.{Colors.RESET}")
+    else:
+        if pin_file.exists():
+            pin_file.unlink()
+        print(f"{Colors.GREEN}✅ Session {session['id'][:8]} unpinned.{Colors.RESET}")
+
+def set_tag(session: Dict, tag: str):
+    tag_file = session['path'] / '.agy_tag'
+    if tag:
+        tag_file.write_text(tag, encoding='utf-8')
+        print(f"{Colors.GREEN}✅ Session {session['id'][:8]} tagged as '{tag}'.{Colors.RESET}")
+    else:
+        if tag_file.exists():
+            tag_file.unlink()
+        print(f"{Colors.GREEN}✅ Tag removed from session {session['id'][:8]}.{Colors.RESET}")
+
+def resolve_session_selection(select_str: str, sessions: List[Dict]) -> Optional[Dict]:
+    """Resolve a user input string (index or ID) to a session."""
+    if select_str.isdigit():
+        idx = int(select_str) - 1
+        if 0 <= idx < len(sessions):
+            return sessions[idx]
+        else:
+            return None
+    else:
+        for s in sessions:
+            if s['id'].startswith(select_str):
+                return s
+        return None
+
 def main():
     parser = argparse.ArgumentParser(description="Beautiful Antigravity (agy) session manager")
     parser.add_argument("select", nargs="?", help="Session index (1-based) or Session ID to resume")
-    parser.add_argument("-n", "--number", type=int, default=15, help="Number of recent sessions to show")
-    parser.add_argument("-s", "--search", type=str, help="Search sessions by prompt text")
+    parser.add_argument("-n", "--number", type=int, default=15, help="Number of sessions to show per page")
+    parser.add_argument("-p", "--page", type=int, default=1, help="Page number to display")
+    parser.add_argument("-s", "--search", type=str, help="Search sessions by prompt text or tag")
     parser.add_argument("-d", "--delete", action="store_true", help="Delete a session (prompts for selection)")
+    parser.add_argument("-t", "--tag", type=str, help="Assign a custom name/tag to a session")
+    parser.add_argument("--pin", action="store_true", help="Pin a session")
+    parser.add_argument("--unpin", action="store_true", help="Unpin a session")
+    parser.add_argument("--clear-all", action="store_true", help="Delete all sessions")
     args = parser.parse_args()
 
-    all_sessions = get_sessions(search_query="")
-    total_count = len(all_sessions)
+    sessions = get_sessions(search_query=args.search)
+    total_count = len(sessions)
     
-    # Filter by search if necessary
-    if args.search:
-        sessions = [s for s in all_sessions if args.search.lower() in s['prompt'].lower()]
-    else:
-        sessions = all_sessions
+    if args.clear_all:
+        clear_all_sessions(sessions)
+        return
+
+    # If select is provided with a modifier (tag, pin, unpin, delete), apply it and exit.
+    if args.select and (args.tag is not None or args.pin or args.unpin or args.delete):
+        session = resolve_session_selection(args.select, sessions)
+        if not session:
+            print(f"{Colors.RED}Error: Session not found.{Colors.RESET}")
+            sys.exit(1)
+            
+        if args.tag is not None:
+            set_tag(session, args.tag)
+        if args.pin:
+            toggle_pin(session, True)
+        if args.unpin:
+            toggle_pin(session, False)
+        if args.delete:
+            delete_session(session)
+        return
+
+    # If just select is provided, resume it immediately.
+    if args.select:
+        session = resolve_session_selection(args.select, sessions)
+        if session:
+            resume_session(session['id'])
+        else:
+            print(f"{Colors.RED}Error: Session not found.{Colors.RESET}")
+            sys.exit(1)
+        return
 
     if not sessions:
         if args.search:
@@ -195,53 +299,65 @@ def main():
         else:
             print(f"{Colors.YELLOW}No previous Antigravity sessions found.{Colors.RESET}")
         
-        # Even if empty, allow new chat
         choice = input(f"\n{Colors.MAGENTA}❯ Type 'n' to start a new chat (or Enter to exit): {Colors.RESET}").strip().lower()
         if choice == 'n':
             new_session()
         sys.exit(0)
 
-    # Truncate to display limit
-    display_limit = args.number if args.number > 0 else len(sessions)
-    displayed_sessions = sessions[:display_limit]
+    # Interactive flow
+    page = args.page
+    limit = args.number if args.number > 0 else total_count
+    interactive_delete = args.delete
+    action_text = "delete" if interactive_delete else "resume"
+    color = Colors.RED if interactive_delete else Colors.MAGENTA
 
-    # Direct select
-    if args.select:
-        if args.select.isdigit():
-            idx = int(args.select) - 1
-            if 0 <= idx < len(displayed_sessions):
-                if args.delete:
-                    delete_session(displayed_sessions[idx])
-                else:
-                    resume_session(displayed_sessions[idx]['id'])
-            else:
-                print(f"{Colors.RED}Error: Index out of range.{Colors.RESET}")
-                sys.exit(1)
-        else:
-            resume_session(args.select)
-        return
-
-    print_beautiful_table(displayed_sessions, total_count=total_count, search_query=args.search)
-
-    try:
-        action_text = "delete" if args.delete else "resume"
-        color = Colors.RED if args.delete else Colors.MAGENTA
+    while True:
+        total_pages = (total_count + limit - 1) // limit
+        page = max(1, min(page, total_pages)) if total_pages > 0 else 1
         
-        choice = input(f" {Colors.BOLD}{color}❯ Enter session number to {action_text}, 'n' for new chat {Colors.DIM}(or press Enter to exit): {Colors.RESET}").strip().lower()
-        
-        if choice == 'n':
-            new_session()
-        elif choice.isdigit():
-            idx = int(choice) - 1
-            if 0 <= idx < len(displayed_sessions):
-                if args.delete:
-                    delete_session(displayed_sessions[idx])
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        displayed_sessions = sessions[start_idx:end_idx]
+
+        print_beautiful_table(displayed_sessions, total_count=total_count, start_idx=start_idx, page=page, total_pages=total_pages, search_query=args.search)
+
+        try:
+            prompt_actions = [f"number to {action_text}", "'n' for new"]
+            if total_pages > 1:
+                prompt_actions.append("'>' next, '<' prev")
+            prompt_str = ", ".join(prompt_actions)
+            
+            choice = input(f" {Colors.BOLD}{color}❯ Enter {prompt_str} {Colors.DIM}(or Enter to exit): {Colors.RESET}").strip().lower()
+            
+            if not choice:
+                break
+            elif choice == 'n':
+                new_session()
+                break
+            elif choice in ['>', 'next'] and page < total_pages:
+                page += 1
+            elif choice in ['<', 'prev'] and page > 1:
+                page -= 1
+            elif choice.isdigit():
+                idx = int(choice) - 1
+                if 0 <= idx < total_count:
+                    if interactive_delete:
+                        delete_session(sessions[idx])
+                        # Refresh after delete
+                        sessions = get_sessions(search_query=args.search)
+                        total_count = len(sessions)
+                        if not sessions:
+                            break
+                    else:
+                        resume_session(sessions[idx]['id'])
+                        break
                 else:
-                    resume_session(displayed_sessions[idx]['id'])
+                    print(f"\n{Colors.YELLOW}Invalid selection.{Colors.RESET}")
             else:
-                print(f"\n{Colors.YELLOW}Invalid selection.{Colors.RESET}")
-    except (KeyboardInterrupt, EOFError):
-        print(f"\n{Colors.DIM}Cancelled.{Colors.RESET}")
+                print(f"\n{Colors.YELLOW}Invalid command.{Colors.RESET}")
+        except (KeyboardInterrupt, EOFError):
+            print(f"\n{Colors.DIM}Cancelled.{Colors.RESET}")
+            break
 
 if __name__ == "__main__":
     main()
