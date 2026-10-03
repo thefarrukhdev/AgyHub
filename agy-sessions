@@ -93,10 +93,19 @@ def get_sessions(search_query: str = "") -> List[Dict]:
         mtime = log_file.stat().st_mtime
         prompt = extract_user_prompt(log_file)
         
-        pinned = (conv_dir / '.agy_pinned').exists()
+        pinned = False
+        try:
+            pinned = (conv_dir / '.agy_pinned').exists()
+        except Exception:
+            pass
         
         tag_file = conv_dir / '.agy_tag'
-        tag = tag_file.read_text(encoding='utf-8').strip() if tag_file.exists() else None
+        tag = None
+        try:
+            if tag_file.exists():
+                tag = tag_file.read_text(encoding='utf-8').strip()
+        except Exception:
+            pass
         
         # Filtering by search query if provided
         if search_query:
@@ -145,7 +154,8 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
         
         pin_indicator = "📌 " if s['pinned'] else ""
         if s['tag']:
-            tag_trunc = s['tag'][:10] + '..' if len(s['tag']) > 12 else s['tag']
+            clean_tag = ' '.join(s['tag'].split())
+            tag_trunc = clean_tag[:10] + '..' if len(clean_tag) > 12 else clean_tag
             id_tag_str = f"{pin_indicator}{tag_trunc} ({short_id})"
         else:
             id_tag_str = f"{pin_indicator}{short_id}"
@@ -159,7 +169,7 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
         # Highlight search query in prompt if exists
         if search_query:
             insensitive_query = re.compile(re.escape(search_query), re.IGNORECASE)
-            prompt_trunc = insensitive_query.sub(f"{Colors.BOLD}{Colors.MAGENTA}\\\\g<0>{Colors.RESET}", prompt_trunc)
+            prompt_trunc = insensitive_query.sub(rf"{Colors.BOLD}{Colors.MAGENTA}\g<0>{Colors.RESET}", prompt_trunc)
 
         prompt_str = f"{Colors.RESET}{prompt_trunc}"
         print(f"  {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
@@ -176,6 +186,13 @@ def new_session():
     print(f"\n{Colors.GREEN}✨ Starting a new session...{Colors.RESET}\n")
     os.execvp("agy", ["agy"])
 
+def _safe_delete_session(path: Path):
+    """Delete a session, handling symlinks correctly."""
+    if path.is_symlink():
+        path.unlink()
+    else:
+        shutil.rmtree(path)
+
 def delete_session(session: Dict):
     """Safely delete a session directory."""
     print(f"\n{Colors.RED}⚠️  WARNING: You are about to delete session {Colors.BOLD}{session['id'][:8]}{Colors.RESET}")
@@ -184,7 +201,7 @@ def delete_session(session: Dict):
     
     if confirm in ['y', 'yes']:
         try:
-            shutil.rmtree(session['path'])
+            _safe_delete_session(session['path'])
             print(f"{Colors.GREEN}✅ Session deleted successfully.{Colors.RESET}")
         except Exception as e:
             print(f"{Colors.RED}❌ Error deleting session: {e}{Colors.RESET}")
@@ -204,7 +221,7 @@ def clear_all_sessions(sessions: List[Dict]):
         count = 0
         for s in sessions:
             try:
-                shutil.rmtree(s['path'])
+                _safe_delete_session(s['path'])
                 count += 1
             except Exception as e:
                 print(f"{Colors.RED}❌ Error deleting {s['id'][:8]}: {e}{Colors.RESET}")
@@ -214,37 +231,49 @@ def clear_all_sessions(sessions: List[Dict]):
 
 def toggle_pin(session: Dict, pin: bool):
     pin_file = session['path'] / '.agy_pinned'
-    if pin:
-        pin_file.touch()
-        print(f"{Colors.GREEN}✅ Session {session['id'][:8]} pinned.{Colors.RESET}")
-    else:
-        if pin_file.exists():
-            pin_file.unlink()
-        print(f"{Colors.GREEN}✅ Session {session['id'][:8]} unpinned.{Colors.RESET}")
+    try:
+        if pin:
+            pin_file.touch()
+            print(f"{Colors.GREEN}✅ Session {session['id'][:8]} pinned.{Colors.RESET}")
+        else:
+            if pin_file.exists():
+                pin_file.unlink()
+            print(f"{Colors.GREEN}✅ Session {session['id'][:8]} unpinned.{Colors.RESET}")
+    except Exception as e:
+        print(f"{Colors.RED}❌ Error updating pin: {e}{Colors.RESET}")
 
 def set_tag(session: Dict, tag: str):
     tag_file = session['path'] / '.agy_tag'
-    if tag:
-        tag_file.write_text(tag, encoding='utf-8')
-        print(f"{Colors.GREEN}✅ Session {session['id'][:8]} tagged as '{tag}'.{Colors.RESET}")
-    else:
-        if tag_file.exists():
-            tag_file.unlink()
-        print(f"{Colors.GREEN}✅ Tag removed from session {session['id'][:8]}.{Colors.RESET}")
+    try:
+        if tag:
+            tag_file.write_text(tag, encoding='utf-8')
+            print(f"{Colors.GREEN}✅ Session {session['id'][:8]} tagged as '{tag}'.{Colors.RESET}")
+        else:
+            if tag_file.exists():
+                tag_file.unlink()
+            print(f"{Colors.GREEN}✅ Tag removed from session {session['id'][:8]}.{Colors.RESET}")
+    except Exception as e:
+        print(f"{Colors.RED}❌ Error updating tag: {e}{Colors.RESET}")
 
 def resolve_session_selection(select_str: str, sessions: List[Dict]) -> Optional[Dict]:
     """Resolve a user input string (index or ID) to a session."""
+    # 1. Exact match
+    for s in sessions:
+        if s['id'] == select_str:
+            return s
+            
+    # 2. Index match
     if select_str.isdigit():
         idx = int(select_str) - 1
         if 0 <= idx < len(sessions):
             return sessions[idx]
-        else:
-            return None
-    else:
-        for s in sessions:
-            if s['id'].startswith(select_str):
-                return s
-        return None
+            
+    # 3. Prefix match
+    for s in sessions:
+        if s['id'].startswith(select_str):
+            return s
+            
+    return None
 
 def main():
     parser = argparse.ArgumentParser(description="Beautiful Antigravity (agy) session manager")
