@@ -22,8 +22,8 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
     col_id_tag = _t('col_id_tag')
     col_preview = _t('col_preview')
 
-    print(f"{Colors.DIM}  {'#':<3} │ {col_time:<14} │ {col_id_tag:<20} │ {col_preview}{Colors.RESET}")
-    print(f"{Colors.DIM} ─────┼────────────────┼──────────────────────┼────────────────────────────────────────────────────────────────────────{Colors.RESET}")
+    print(f"{Colors.DIM}   {'#':<3} │ {col_time:<14} │ {col_id_tag:<20} │ {col_preview}{Colors.RESET}")
+    print(f"{Colors.DIM} ──────┼────────────────┼──────────────────────┼────────────────────────────────────────────────────────────────────────{Colors.RESET}")
 
     for i, s in enumerate(sessions):
         idx = start_idx + i + 1
@@ -49,28 +49,36 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
         # Highlight search query in prompt if exists
         if search_query:
             insensitive_query = re.compile(re.escape(search_query), re.IGNORECASE)
-            prompt_trunc = insensitive_query.sub(rf"{Colors.BOLD}{Colors.MAGENTA}\g<0>{Colors.RESET}", prompt_trunc)
+            prompt_trunc = insensitive_query.sub(rf"{Colors.BOLD}{Colors.MAGENTA}\\g<0>{Colors.RESET}", prompt_trunc)
 
         is_selected = (i == selected_idx)
         
         if is_selected:
-            # Invert the entire line so gaps don't appear
-            idx_pad = f"{idx:<3}"
-            rel_pad = f"{s['relative']:<14}"
-            # Re-apply bold/color to prompt if it has search highlight, 
-            # but since inverted overrides foreground, we just print the raw line inverted
+            # Modern highlight: Pointer + Bold Vibrant Colors instead of blocky inversion
+            idx_str = f"{Colors.BOLD}{Colors.CYAN}{idx:<3}{Colors.RESET}"
+            time_str = f"{Colors.BOLD}{Colors.CYAN}{s['relative']:<14}{Colors.RESET}"
+            cid_str = f"{Colors.BOLD}{Colors.CYAN}{id_tag_str}{Colors.RESET}"
+            
             raw_prompt = s['prompt']
             if len(raw_prompt) > max_len:
                 raw_prompt = raw_prompt[:max_len] + '...'
             else:
                 raw_prompt = raw_prompt.ljust(max_len)
                 
-            print(f"\033[7m  {idx_pad} │ {rel_pad} │ {id_tag_str} │ {raw_prompt}\033[0m")
+            if search_query:
+                # Keep search highlight (magenta) but make the rest cyan
+                import re
+                insensitive_query = re.compile(re.escape(search_query), re.IGNORECASE)
+                raw_prompt = insensitive_query.sub(rf"{Colors.BOLD}{Colors.MAGENTA}\\g<0>{Colors.RESET}{Colors.BOLD}{Colors.CYAN}", raw_prompt)
+                
+            prompt_str = f"{Colors.BOLD}{Colors.CYAN}{raw_prompt}{Colors.RESET}"
+            
+            print(f" {Colors.BOLD}{Colors.CYAN}➜{Colors.RESET} {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
         else:
             idx_str = f"{Colors.BOLD}{Colors.YELLOW}{idx:<3}{Colors.RESET}"
             time_str = f"{Colors.CYAN}{s['relative']:<14}{Colors.RESET}"
             cid_str = f"{Colors.GREEN}{id_tag_str}{Colors.RESET}"
             prompt_str = f"{Colors.RESET}{prompt_trunc}"
-            print(f"  {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
+            print(f"   {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
 
-    print(f"{Colors.DIM} ─────┴────────────────┴──────────────────────┴────────────────────────────────────────────────────────────────────────{Colors.RESET}\n")
+    print(f"{Colors.DIM} ──────┴────────────────┴──────────────────────┴────────────────────────────────────────────────────────────────────────{Colors.RESET}\n")

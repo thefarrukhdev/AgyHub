@@ -168,12 +168,8 @@ def main():
         print_beautiful_table(displayed_sessions, total_count=total_count, start_idx=start_idx, page=page, total_pages=total_pages, search_query=args.search, selected_idx=selected_idx)
 
         try:
-            prompt_actions = [_t('prompt_actions', action=action_text), _t('prompt_new_opt')]
-            if total_pages > 1:
-                prompt_actions.append(_t('prompt_nav'))
-            prompt_str = ", ".join(prompt_actions)
-            
-            print(f" {Colors.BOLD}{color}{_t('prompt_enter', actions=prompt_str)}{Colors.RESET} {input_buffer}", end="")
+            # Minimalist prompt
+            print(f" {Colors.BOLD}{color}❯ {Colors.RESET}{input_buffer}", end="")
             sys.stdout.flush()
             
             key = read_key()
