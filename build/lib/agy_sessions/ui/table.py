@@ -73,7 +73,7 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
                 
             prompt_str = f"{Colors.BOLD}{Colors.CYAN}{raw_prompt}{Colors.RESET}"
             
-            print(f" {Colors.BOLD}{Colors.CYAN}➜{Colors.RESET} {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
+            print(f" {Colors.BOLD}{Colors.CYAN}▶{Colors.RESET} {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
         else:
             idx_str = f"{Colors.BOLD}{Colors.YELLOW}{idx:<3}{Colors.RESET}"
             time_str = f"{Colors.CYAN}{s['relative']:<14}{Colors.RESET}"

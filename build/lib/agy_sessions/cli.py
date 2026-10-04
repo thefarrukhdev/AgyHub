@@ -169,7 +169,7 @@ def main():
 
         try:
             # Minimalist prompt
-            print(f" {Colors.BOLD}{color}❯ {Colors.RESET}{input_buffer}", end="")
+            print(f" {Colors.BOLD}{color}▶ {Colors.RESET}{input_buffer}", end="")
             sys.stdout.flush()
             
             key = read_key()
