@@ -1,11 +1,6 @@
-C = "\x1b[38;2;23;147;209m"
-R = "\x1b[m"
-arch_logo = [
-    f"    {C}▄▄{R}",
-    f"   {C}████{R}",
-    f"  {C}██▄▄██{R}",
-    f" {C}██{R}    {C}██{R}",
-    f"{C}▀██{R}      {C}██▀{R}"
-]
-for l in arch_logo:
-    print(l)
+from agy_sessions.ui.colors import Colors
+title = "AgyHub (Antigravity Sessiya Menejeri)"
+stats_line = "Jami chatlar: 310 | Sahifa 1/21"
+
+with open("agy_sessions/ui/table.py", "r") as f:
+    exec(f.read())
