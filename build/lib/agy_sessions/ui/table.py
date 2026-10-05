@@ -5,7 +5,7 @@ from agy_sessions.i18n.manager import _t
 
 def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int, page: int, total_pages: int, search_query: str = "", selected_idx: int = -1):
     """Render a beautiful, dependency-free terminal UI table."""
-    print("\033[H\033[J", end="")
+    print("\033[2J\033[H", end="")
     
     title = _t('title')
     if search_query:
@@ -29,9 +29,11 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
         ""
     ]
     
+    pads = ["      ", "     ", "    ", " ", ""]
+    
     print()
     for i in range(5):
-        print(f" {logo[i]}    {lines[i]}")
+        print(f" {logo[i]}{pads[i]}    {lines[i]}")
     print()
 
     col_time = _t('col_time')
