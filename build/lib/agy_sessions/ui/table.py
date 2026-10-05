@@ -13,10 +13,28 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
         
     stats_line = _t('total_chats_page', count=total_count, page=page, total=total_pages) if total_pages > 0 else _t('total_chats', count=total_count)
 
-    print(f"\n{Colors.BOLD}{Colors.CYAN}╭{'─'*117}╮")
-    print(f"│ {title.center(115)} │")
-    print(f"│ {stats_line.center(115)} │")
-    print(f"╰{'─'*117}╯{Colors.RESET}")
+    logo = [
+        f"     {Colors.L1}▄▄{Colors.RESET}",
+        f"    {Colors.L2}████{Colors.RESET}",
+        f"   {Colors.L3}██████{Colors.RESET}",
+        f"   {Colors.L4}██{Colors.RESET}  {Colors.L4}██{Colors.RESET}",
+        f"  {Colors.L5}██{Colors.RESET}    {Colors.L5}██{Colors.RESET}",
+        f"  {Colors.L6}▀▀{Colors.RESET}    {Colors.L6}▀▀{Colors.RESET}"
+    ]
+    
+    lines = [
+        "",
+        f"{Colors.BOLD}{title}{Colors.RESET}",
+        f"{Colors.DIM}{stats_line}{Colors.RESET}",
+        "",
+        "",
+        ""
+    ]
+    
+    print()
+    for i in range(6):
+        print(f" {logo[i]}    {lines[i]}")
+    print()
 
     col_time = _t('col_time')
     col_id_tag = _t('col_id_tag')
