@@ -20,6 +20,18 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
         '  \x1b[38;2;109;198;148m▄\x1b[38;2;97;195;125;48;2;98;186;213m▀\x1b[38;2;67;174;171;48;2;71;168;220m▀\x1b[m    \x1b[38;2;74;128;234;48;2;61;137;251m▀\x1b[38;2;108;115;216;48;2;74;129;240m▀\x1b[38;2;101;121;225;49m▄\x1b[m',
         ' \x1b[38;2;103;185;244m▄\x1b[38;2;107;199;163;48;2;100;182;246m▀\x1b[38;2;100;182;246;49m▀\x1b[m      \x1b[38;2;56;134;251m▀\x1b[38;2;72;129;244;48;2;56;131;249m▀\x1b[38;2;61;133;252;49m▄\x1b[m'
     ]
+    pads1 = ["    ", "   ", "  ", " ", ""]
+    
+    C = "\x1b[38;2;23;147;209m"
+    R = "\x1b[m"
+    arch_logo = [
+        f"    {C}▄▄{R}",
+        f"   {C}████{R}",
+        f"  {C}██{R}  {C}██{R}",
+        f" {C}██{R}    {C}██{R}",
+        f"{C}▀██{R}      {C}██▀{R}"
+    ]
+    pads2 = ["      ", "     ", "    ", "   ", ""]
     
     lines = [
         "",
@@ -29,13 +41,10 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
         ""
     ]
     
-    pads = ["    ", "   ", "  ", " ", ""]
-    
     print()
     for i in range(5):
-        print(f" {logo[i]}{pads[i]}    {lines[i]}")
+        print(f" {logo[i]}{pads1[i]}   {arch_logo[i]}{pads2[i]}    {lines[i]}")
     print()
-
     col_time = _t('col_time')
     col_id_tag = _t('col_id_tag')
     col_preview = _t('col_preview')
