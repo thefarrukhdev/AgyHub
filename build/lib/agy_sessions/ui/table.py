@@ -14,15 +14,15 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
     stats_line = _t('total_chats_page', count=total_count, page=page, total=total_pages) if total_pages > 0 else _t('total_chats', count=total_count)
 
     arch_logo = [
-        f"{Colors.BOLD}\x1b[38;2;23;147;209m      /\\       \x1b[m",
-        f"{Colors.BOLD}\x1b[38;2;23;147;209m     /  \\      \x1b[m",
-        f"{Colors.BOLD}\x1b[38;2;23;147;209m    /    \\     \x1b[m",
-        f"{Colors.BOLD}\x1b[38;2;23;147;209m   /      \\    \x1b[m",
-        f"{Colors.BOLD}\x1b[38;2;23;147;209m  /   ,,   \\   \x1b[m",
-        f"{Colors.BOLD}\x1b[38;2;23;147;209m /   |  |   \\  \x1b[m",
-        f"{Colors.BOLD}\x1b[38;2;23;147;209m/_-''    ''-_\\ \x1b[m"
+        '\x1b[38;2;23;147;209m            ▄██▄            \x1b[m',
+        '\x1b[38;2;23;147;209m          ▄██████▄          \x1b[m',
+        '\x1b[38;2;23;147;209m        ▄██████████▄        \x1b[m',
+        '\x1b[38;2;23;147;209m      ▄███▀▀    ▀▀███▄      \x1b[m',
+        '\x1b[38;2;23;147;209m    ▄███▀    ▄▄    ▀███▄    \x1b[m',
+        '\x1b[38;2;23;147;209m  ▄███▀    ▄█▀▀█▄    ▀▀▀█▄  \x1b[m',
+        '\x1b[38;2;23;147;209m▄███▀                  ▀███▄\x1b[m'
     ]
-    pads_arch = ["   ", "   ", "   ", "   ", "   ", "   ", "   "]
+    pads_arch = ["", "", "", "", "", "", ""]
 
     logo = [
         '              ',
@@ -33,7 +33,7 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
         '  \x1b[38;2;109;198;148m▄\x1b[38;2;97;195;125;48;2;98;186;213m▀\x1b[38;2;67;174;171;48;2;71;168;220m▀\x1b[m    \x1b[38;2;74;128;234;48;2;61;137;251m▀\x1b[38;2;108;115;216;48;2;74;129;240m▀\x1b[38;2;101;121;225;49m▄\x1b[m',
         ' \x1b[38;2;103;185;244m▄\x1b[38;2;107;199;163;48;2;100;182;246m▀\x1b[38;2;100;182;246;49m▀\x1b[m      \x1b[38;2;56;134;251m▀\x1b[38;2;72;129;244;48;2;56;131;249m▀\x1b[38;2;61;133;252;49m▄\x1b[m'
     ]
-    pads_logo = ["", "", "    ", "   ", "  ", " ", ""]
+    pads_logo = ["", "", "     ", "    ", "   ", "  ", " "]
 
     text_lines = [
         "",
