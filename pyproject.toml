@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agyhub"
+name = "agychat"
 version = "2.0.0"
 description = "A beautiful, dependency-free CLI tool to view, search, and resume Antigravity AI sessions."
 readme = "README.md"
@@ -13,10 +13,9 @@ requires-python = ">=3.8"
 dependencies = []
 
 [project.scripts]
-agy-sessions = "agy_sessions.cli:main"
-agyhub = "agy_sessions.cli:main"
-chats = "agy_sessions.cli:main"
+agychat = "agychat.cli:main"
+chats = "agychat.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["agy_sessions*"]
+include = ["agychat*"]

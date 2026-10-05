@@ -1,4 +1,0 @@
-[console_scripts]
-agy-sessions = agy_sessions.cli:main
-agyhub = agy_sessions.cli:main
-chats = agy_sessions.cli:main

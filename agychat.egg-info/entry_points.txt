@@ -1,0 +1,3 @@
+[console_scripts]
+agychat = agychat.cli:main
+chats = agychat.cli:main
