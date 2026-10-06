@@ -122,8 +122,48 @@ def resolve_session_selection(select_str: str, sessions: List[Dict]) -> Optional
             
     return None
 
+
+def _run_agy_with_retry(cmd: List[str]):
+    import subprocess
+    import shutil
+    import sys
+    from agychat.ui.colors import Colors
+
+    bin_path = shutil.which("agy-oauth-manager")
+    
+    while True:
+        # Run agy in the foreground, inheriting stdin/stdout for TTY
+        result = subprocess.run(cmd)
+        
+        # If exit code is 0, it means normal exit (user typed exit, or clean stop)
+        if result.returncode == 0:
+            break
+            
+        # Non-zero exit code: possible quota error (429) or other crash.
+        if bin_path:
+            print(f"\n{Colors.DIM}Session ended with an error (e.g., Quota Exhausted).{Colors.RESET}")
+            print(f"{Colors.YELLOW}Checking for other accounts with limits...{Colors.RESET}")
+            
+            res = subprocess.run([bin_path, "--auto-switch"], capture_output=True, text=True)
+            if res.returncode == 0:
+                out_msg = res.stdout.strip()
+                if out_msg:
+                    print(f"\n{Colors.GREEN}✨ {out_msg}{Colors.RESET}")
+                    print(f"{Colors.CYAN}Automatically resuming session...{Colors.RESET}\n")
+                    import time
+                    time.sleep(1)
+                    continue
+                else:
+                    # Current account was fine, so it wasn't a quota error. Just break.
+                    break
+            else:
+                print(f"{Colors.RED}❌ All accounts have exhausted their limits.{Colors.RESET}")
+                break
+        else:
+            break
+
 def execute_resume_session(session_id: str):
-    os.execvp("agy", ["agy", "--conversation", session_id])
+    _run_agy_with_retry(["agy", "--conversation", session_id])
 
 def execute_new_session():
-    os.execvp("agy", ["agy"])
+    _run_agy_with_retry(["agy"])

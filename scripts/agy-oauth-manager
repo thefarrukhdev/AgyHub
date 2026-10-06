@@ -289,6 +289,80 @@ def _parse_usage_tsv(output: str) -> dict:
         groups[group].append({"type": ltype, "pct": pct, "refresh": _format_refresh(iso_ts)})
     return groups
 
+
+def cmd_auto_switch() -> int:
+    tokens = load_saved_tokens()
+    if not tokens:
+        return 1
+
+    orig_cli = read_json_file(CLI_CRED_FILE)
+    orig_email = get_cli_email(orig_cli) or "unknown"
+    
+    # helper to check limit
+    def check_limits(email: str) -> dict:
+        set_active_email(email)
+        env = os.environ.copy()
+        env["BROWSER"] = "/bin/false"
+        env.pop("DISPLAY", None)
+        env.pop("WAYLAND_DISPLAY", None)
+        try:
+            res = subprocess.run(["agy", "-p", "/usage"], capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, env=env)
+            if res.returncode == 0 and res.stdout.strip():
+                return _parse_usage_tsv(res.stdout)
+        except subprocess.TimeoutExpired:
+            subprocess.run(["pkill", "-f", "agy -p /usage"], capture_output=True)
+        return {}
+
+    # Check current account first
+    if orig_email in tokens:
+        usage = check_limits(orig_email)
+        if usage:
+            pro = usage.get("pro", {})
+            pro_rem = int(pro.get("remaining", -1))
+            if pro_rem > 0:
+                return 0 # Current is fine
+
+    # Find the best account
+    best_email = None
+    best_pro = -1
+    
+    for email in tokens.keys():
+        if email == orig_email:
+            continue
+        usage = check_limits(email)
+        if usage:
+            pro = usage.get("pro", {})
+            pro_rem = int(pro.get("remaining", -1))
+            if pro_rem > best_pro:
+                best_pro = pro_rem
+                best_email = email
+                
+    if best_pro > 0 and best_email:
+        set_active_email(best_email)
+        print(f"Auto-switched to {best_email} (Pro limits: {best_pro})")
+        return 0
+
+    # No pro limits? Try flash
+    best_flash = -1
+    for email in tokens.keys():
+        usage = check_limits(email)
+        if usage:
+            flash = usage.get("flash", {})
+            flash_rem = int(flash.get("remaining", -1))
+            if flash_rem > best_flash:
+                best_flash = flash_rem
+                best_email = email
+                
+    if best_flash > 0 and best_email:
+        set_active_email(best_email)
+        print(f"Auto-switched to {best_email} (Flash limits: {best_flash})")
+        return 0
+
+    # Restore original if nothing better
+    if orig_email in tokens:
+        set_active_email(orig_email)
+    return 1
+
 def cmd_status() -> None:
     tokens = load_saved_tokens()
     if not tokens:
