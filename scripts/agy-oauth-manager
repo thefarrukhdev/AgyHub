@@ -1,0 +1,421 @@
+#!/usr/bin/env python3
+"""
+Antigravity Account Switcher (agy-oauth-manager)
+
+File-based token manager.
+Reads/writes tokens to:
+1. ~/.cache/google-vscode-extension/auth/credentials.json (IDE)
+2. ~/.gemini/antigravity-cli/antigravity-oauth-token (CLI)
+"""
+
+import argparse
+import base64
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+# ─── Constants ────────────────────────────────────────────────────────────────
+GEMINI_DIR     = os.path.expanduser("~/.gemini")
+TOKEN_STORE    = os.path.join(GEMINI_DIR, "oauth_tokens.json")
+IDE_CRED_FILE  = os.path.expanduser("~/.cache/google-vscode-extension/auth/credentials.json")
+CLI_CRED_FILE  = os.path.expanduser("~/.gemini/antigravity-cli/antigravity-oauth-token")
+VSCODE_DB_PATH = os.path.expanduser("~/.config/Antigravity IDE/User/globalStorage/state.vscdb")
+# ──────────────────────────────────────────────────────────────────────────────
+
+def setup_environment() -> None:
+    os.makedirs(GEMINI_DIR, mode=0o700, exist_ok=True)
+    if os.path.exists(TOKEN_STORE):
+        os.chmod(TOKEN_STORE, 0o600)
+
+def extract_email_from_jwt(id_token: str) -> str:
+    if not id_token:
+        return ""
+    try:
+        payload = id_token.split('.')[1]
+        payload += '=' * (-len(payload) % 4)
+        data = json.loads(base64.b64decode(payload))
+        return data.get("email", "")
+    except:
+        return ""
+
+def get_ide_email(cred: dict) -> str:
+    if not cred: return ""
+    return cred.get("email") or extract_email_from_jwt(cred.get("credentials", {}).get("id_token", ""))
+
+def get_cli_email(cred: dict) -> str:
+    if not cred: return ""
+    return extract_email_from_jwt(cred.get("id_token", ""))
+
+def load_saved_tokens() -> dict:
+    if os.path.exists(TOKEN_STORE):
+        try:
+            with open(TOKEN_STORE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return {}
+
+def save_tokens(tokens: dict) -> None:
+    setup_environment()
+    tmp = f"{TOKEN_STORE}.tmp"
+    open(tmp, 'a').close()
+    os.chmod(tmp, 0o600)
+    with open(tmp, 'w') as f:
+        json.dump(tokens, f, indent=4)
+    os.replace(tmp, TOKEN_STORE)
+
+def read_json_file(path: str) -> dict | None:
+    if os.path.exists(path):
+        try:
+            with open(path) as f:
+                return json.load(f)
+        except:
+            pass
+    return None
+
+def write_json_file(path: str, data: dict) -> None:
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+    tmp = f"{path}.tmp"
+    open(tmp, 'a').close()
+    os.chmod(tmp, 0o600)
+    with open(tmp, 'w') as f:
+        json.dump(data, f, indent=4)
+    os.replace(tmp, path)
+
+def clear_ide_cache() -> None:
+    if os.path.exists(VSCODE_DB_PATH):
+        try:
+            os.remove(VSCODE_DB_PATH)
+        except Exception:
+            pass
+
+def synthesize_ide_from_cli(email: str, cli: dict) -> dict:
+    # CLI -> IDE
+    try:
+        t = cli.get("token", {})
+        expiry_str = t.get("expiry", "")
+        # Very rough ISO parsing (just dropping nanosecs)
+        try:
+            dt = datetime.fromisoformat(expiry_str.split('.')[0] + '+00:00')
+            exp_ms = int(dt.timestamp() * 1000)
+        except:
+            exp_ms = 0
+            
+        return {
+            "email": email,
+            "credentials": {
+                "access_token": t.get("access_token", ""),
+                "token_type": t.get("token_type", "Bearer"),
+                "refresh_token": t.get("refresh_token", ""),
+                "id_token": cli.get("id_token", ""),
+                "expiry_date": exp_ms
+            }
+        }
+    except:
+        return {}
+
+def synthesize_cli_from_ide(ide: dict) -> dict:
+    # IDE -> CLI
+    try:
+        c = ide.get("credentials", {})
+        exp_ms = c.get("expiry_date", 0)
+        if exp_ms:
+            dt = datetime.fromtimestamp(exp_ms / 1000.0, tz=timezone.utc)
+            expiry_str = dt.isoformat()
+        else:
+            expiry_str = ""
+            
+        return {
+            "token": {
+                "access_token": c.get("access_token", ""),
+                "token_type": c.get("token_type", "Bearer"),
+                "refresh_token": c.get("refresh_token", ""),
+                "expiry": expiry_str
+            },
+            "auth_method": "consumer",
+            "id_token": c.get("id_token", "")
+        }
+    except:
+        return {}
+
+def cmd_save_current() -> None:
+    tokens = load_saved_tokens()
+    ide_cred = read_json_file(IDE_CRED_FILE)
+    cli_cred = read_json_file(CLI_CRED_FILE)
+    
+    ide_email = get_ide_email(ide_cred)
+    cli_email = get_cli_email(cli_cred)
+    
+    saved_any = False
+    
+    if ide_email:
+        if ide_email not in tokens:
+            tokens[ide_email] = {}
+        # Keep backwards compatibility for AgyChat cmd_status JSON restoring
+        tokens[ide_email]["email"] = ide_email
+        tokens[ide_email]["credentials"] = ide_cred.get("credentials", {})
+        tokens[ide_email]["ide_format"] = ide_cred
+        if not tokens[ide_email].get("cli_format"):
+            tokens[ide_email]["cli_format"] = synthesize_cli_from_ide(ide_cred)
+        saved_any = True
+        
+    if cli_email:
+        if cli_email not in tokens:
+            tokens[cli_email] = {}
+        tokens[cli_email]["cli_format"] = cli_cred
+        if not tokens[cli_email].get("ide_format"):
+            ide_syn = synthesize_ide_from_cli(cli_email, cli_cred)
+            tokens[cli_email]["ide_format"] = ide_syn
+            tokens[cli_email]["email"] = ide_syn.get("email", "")
+            tokens[cli_email]["credentials"] = ide_syn.get("credentials", {})
+        saved_any = True
+        
+    if saved_any:
+        save_tokens(tokens)
+        emails = list(set(filter(None, [ide_email, cli_email])))
+        print(f"✅ Success! Saved token(s) for: {', '.join(emails)}")
+    else:
+        print("❌ No active accounts found in IDE or CLI.", file=sys.stderr)
+        sys.exit(1)
+
+def set_active_email(email: str) -> None:
+    tokens = load_saved_tokens()
+    if email not in tokens:
+        print(f"❌ Account '{email}' not found.", file=sys.stderr)
+        sys.exit(1)
+        
+    acct = tokens[email]
+    
+    ide_format = acct.get("ide_format")
+    if not ide_format and "credentials" in acct:
+        ide_format = {"email": email, "credentials": acct["credentials"]}
+        
+    cli_format = acct.get("cli_format")
+    if not cli_format and ide_format:
+        cli_format = synthesize_cli_from_ide(ide_format)
+        
+    if ide_format:
+        write_json_file(IDE_CRED_FILE, ide_format)
+    if cli_format:
+        write_json_file(CLI_CRED_FILE, cli_format)
+        
+    clear_ide_cache()
+
+def cmd_switch(email: str) -> None:
+    set_active_email(email)
+    print(f"✅ Switched to {email}")
+
+def cmd_rotate() -> None:
+    tokens = load_saved_tokens()
+    if not tokens:
+        print("No accounts saved.")
+        sys.exit(1)
+        
+    emails = list(tokens.keys())
+    
+    cli_cred = read_json_file(CLI_CRED_FILE)
+    current_email = get_cli_email(cli_cred)
+    if not current_email:
+        ide_cred = read_json_file(IDE_CRED_FILE)
+        current_email = get_ide_email(ide_cred)
+        
+    try:
+        idx = emails.index(current_email)
+        next_idx = (idx + 1) % len(emails)
+    except ValueError:
+        next_idx = 0
+        
+    next_email = emails[next_idx]
+    set_active_email(next_email)
+    print(f"ECHO_EMAIL:{next_email}")
+
+def cmd_current() -> None:
+    cli_cred = read_json_file(CLI_CRED_FILE)
+    email = get_cli_email(cli_cred)
+    if not email:
+        ide_cred = read_json_file(IDE_CRED_FILE)
+        email = get_ide_email(ide_cred)
+        
+    if email:
+        print(f"ECHO_EMAIL:{email}")
+    else:
+        print("No active account.", file=sys.stderr)
+
+
+# ── ANSI helpers ──────────────────────────────────────────────────────────────
+BOLD    = "\033[1m"
+DIM     = "\033[2m"
+RESET   = "\033[0m"
+GREEN   = "\033[32m"
+YELLOW  = "\033[33m"
+RED     = "\033[31m"
+CYAN    = "\033[36m"
+MAGENTA = "\033[35m"
+WHITE   = "\033[97m"
+
+def _pct_color(pct: float) -> str:
+    if pct >= 60: return GREEN
+    elif pct >= 25: return YELLOW
+    return RED
+
+def _make_bar(pct: float, width: int = 30) -> str:
+    filled = round(pct / 100 * width)
+    bar = "█" * filled + "░" * (width - filled)
+    return f"{DIM}[{RESET}{_pct_color(pct)}{bar}{RESET}{DIM}]{RESET}"
+
+def _format_refresh(iso_ts: str) -> str:
+    try:
+        dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        diff = dt - now
+        if diff.total_seconds() <= 0: return "refreshes soon"
+        total_min = int(diff.total_seconds() / 60)
+        h, m = divmod(total_min, 60)
+        return f"Refreshes in {h}h {m}m" if h > 0 else f"Refreshes in {m}m"
+    except: return ""
+
+def _parse_usage_tsv(output: str) -> dict:
+    groups = {}
+    for line in output.strip().split('\n'):
+        parts = line.split('\t')
+        if len(parts) < 3: continue
+        group, ltype, pct_str = parts[0].strip(), parts[1].strip(), parts[2].strip().replace('%', '')
+        iso_ts = parts[3].strip() if len(parts) > 3 else ""
+        try: pct = float(pct_str)
+        except: continue
+        if group not in groups: groups[group] = []
+        groups[group].append({"type": ltype, "pct": pct, "refresh": _format_refresh(iso_ts)})
+    return groups
+
+def cmd_status() -> None:
+    tokens = load_saved_tokens()
+    if not tokens:
+        print("No accounts saved.")
+        return
+
+    # Backup BOTH files
+    orig_ide = read_json_file(IDE_CRED_FILE)
+    orig_cli = read_json_file(CLI_CRED_FILE)
+    
+    orig_email = get_cli_email(orig_cli) or get_ide_email(orig_ide)
+
+    W = 60
+    print(f"\n{BOLD}{CYAN}{'═' * W}{RESET}")
+    print(f"{BOLD}{CYAN}  🤖  ACCOUNT USAGE & RATE LIMITS{RESET}")
+    print(f"{BOLD}{CYAN}{'═' * W}{RESET}")
+
+    for email, acct in tokens.items():
+        is_active = (email == orig_email)
+        badge = f"{GREEN}● ACTIVE{RESET}" if is_active else f"{DIM}○ saved {RESET}"
+
+        print(f"\n  {BOLD}{WHITE}{email}{RESET}  {badge}")
+        print(f"  {DIM}{'─' * (W - 2)}{RESET}")
+        print(f"  {DIM}Fetching limits...{RESET}", end="\r")
+        sys.stdout.flush()
+
+        set_active_email(email)
+
+        env = os.environ.copy()
+        env["BROWSER"] = "/bin/false"
+        env.pop("DISPLAY", None)
+        env.pop("WAYLAND_DISPLAY", None)
+        try:
+            res = subprocess.run(["agy", "-p", "/usage"], capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, env=env)
+            combined = res.stderr + res.stdout
+            if "accounts.google.com" in combined or "login" in combined.lower() or "authorization" in combined.lower():
+                print(" " * 40, end="\r")
+                print(f"  {RED}❌  Token expired (Login required){RESET}")
+                continue
+        except subprocess.TimeoutExpired:
+            print(" " * 40, end="\r")
+            print(f"  {RED}❌  Timeout (Likely waiting for auth){RESET}")
+            subprocess.run(["pkill", "-f", "agy -p /usage"], capture_output=True)
+            continue
+
+        print(" " * 40, end="\r")
+
+        if res.returncode != 0 or not res.stdout.strip():
+            print(f"  {RED}❌  Could not fetch limits{RESET}")
+            tokens[email]["last_limit"] = -1
+            continue
+
+        groups = _parse_usage_tsv(res.stdout)
+        
+        overall_limit = 0.0
+        for group_name, limits in groups.items():
+            upper_g = group_name.upper()
+            g_name = "Gemini" if "GEMINI" in upper_g else "Claude/GPT" if "CLAUDE" in upper_g else group_name[:10]
+            lim_strs = []
+            
+            for lim in limits:
+                pct, ltype, refresh = lim["pct"], lim["type"], lim["refresh"]
+                
+                ref = refresh.replace("Refreshes in ", "").strip()
+                if "h" in ref: ref = ref.split("h")[0] + "h"
+                elif "m" in ref: ref = ref.split("m")[0] + "m"
+                else: ref = "-"
+                
+                label = "W" if "Weekly" in ltype else "5H" if "Five" in ltype else "L"
+                
+                # We prioritize Gemini 5-hour limit for sorting if available
+                if "gemini" in group_name.lower():
+                    if "five" in ltype.lower() or overall_limit == 0.0:
+                        overall_limit = pct
+                        
+                # Compact bar (width 10 instead of 30)
+                filled = round(pct / 100 * 10)
+                bar = "█" * filled + "░" * (10 - filled)
+                c_bar = f"{DIM}[{RESET}{_pct_color(pct)}{bar}{RESET}{DIM}]{RESET}"
+                
+                lim_strs.append(f"{DIM}{label}:{RESET} {c_bar} {_pct_color(pct)}{pct:>3.0f}%{RESET} {DIM}({ref}){RESET}")
+            
+            print(f"    {BOLD}{g_name:<10}{RESET} " + f" {DIM}│{RESET} ".join(lim_strs))
+            
+        tokens[email]["last_limit"] = overall_limit
+
+    # Save the updated limits and sort tokens by limit (highest first)
+    sorted_emails = sorted(tokens.keys(), key=lambda e: tokens[e].get("last_limit", -1), reverse=True)
+    sorted_tokens = {e: tokens[e] for e in sorted_emails}
+    save_tokens(sorted_tokens)
+
+    # Restore BOTH files
+    if orig_ide: write_json_file(IDE_CRED_FILE, orig_ide)
+    elif os.path.exists(IDE_CRED_FILE): os.remove(IDE_CRED_FILE)
+    
+    if orig_cli: write_json_file(CLI_CRED_FILE, orig_cli)
+    elif os.path.exists(CLI_CRED_FILE): os.remove(CLI_CRED_FILE)
+
+    clear_ide_cache()
+    print(f"\n{BOLD}{CYAN}{'═' * W}{RESET}\n")
+
+def cmd_delete(email: str) -> None:
+    tokens = load_saved_tokens()
+    if email not in tokens:
+        print(f"❌ Account '{email}' not in store.", file=sys.stderr)
+        sys.exit(1)
+    del tokens[email]
+    save_tokens(tokens)
+    print(f"✅ Deleted account: {email}")
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--save", action="store_true")
+    group.add_argument("--rotate", action="store_true")
+    group.add_argument("--current", action="store_true")
+    group.add_argument("--status", action="store_true")
+    group.add_argument("--switch", type=str, metavar="EMAIL")
+    group.add_argument("--delete", type=str, metavar="EMAIL")
+    args = parser.parse_args()
+
+    if args.save: cmd_save_current()
+    elif args.rotate: cmd_rotate()
+    elif args.current: cmd_current()
+    elif args.status: cmd_status()
+    elif args.switch: cmd_switch(args.switch)
+    elif args.delete: cmd_delete(args.delete)
+
+if __name__ == "__main__":
+    main()

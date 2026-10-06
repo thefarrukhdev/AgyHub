@@ -8,6 +8,8 @@ class Colors:
     DIM = '\033[2m'
     BOLD = '\033[1m'
     RESET = '\033[0m'
+    BG_BLUE = '\033[44m'
+    BG_RESET = '\033[49m'
 
     # Logo gradient colors (Antigravity Style)
     L1 = '\033[38;2;250;171;19m' # Orange/Yellow

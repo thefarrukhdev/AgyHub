@@ -36,49 +36,39 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
     print()
 
     col_time = _t('col_time')
-    col_id_tag = _t('col_id_tag')
     col_preview = _t('col_preview')
 
-    print(f"{Colors.DIM}   {'#':<3} │ {col_time:<14} │ {col_id_tag:<20} │ {col_preview}{Colors.RESET}")
-    print(f"{Colors.DIM} ──────┼────────────────┼──────────────────────┼────────────────────────────────────────────────────────────────────────{Colors.RESET}")
+    print(f"{Colors.DIM}   {'#':<3} │ {col_time:<14} │ {col_preview}{Colors.RESET}")
+    print(f"{Colors.DIM} ──────┼────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────{Colors.RESET}")
 
     for i, s in enumerate(sessions):
         idx = start_idx + i + 1
-        prompt = s['prompt']
-        max_len = 71
-        prompt_trunc = prompt[:max_len] + '...' if len(prompt) > max_len else prompt.ljust(max_len)
-        short_id = s['id'][:8]
+        prompt = s['prompt'].replace('\n', ' ')
         
-        pin_indicator = "📌 " if s['pinned'] else ""
-        if s['tag']:
+        pin_indicator = "📌 " if s.get('pinned') else ""
+        if s.get('tag'):
             clean_tag = ' '.join(s['tag'].split())
-            max_tag_len = 20 - len(pin_indicator) - len(f" ({short_id})")
-            if len(clean_tag) > max_tag_len:
-                tag_trunc = clean_tag[:max_tag_len-2] + '..'
-            else:
-                tag_trunc = clean_tag
-            id_tag_str = f"{pin_indicator}{tag_trunc} ({short_id})"
+            tag_raw = f" {pin_indicator}[{clean_tag}]"
+            # Use a sleek lavender foreground color instead of an ugly background
+            tag_colored = f" {pin_indicator}\033[38;5;141m[{clean_tag}]\033[0m"
         else:
-            id_tag_str = f"{pin_indicator}{short_id}"
-            
-        id_tag_str = id_tag_str.ljust(20)
-        
-        # Highlight search query in prompt if exists
-        if search_query:
-            insensitive_query = re.compile(re.escape(search_query), re.IGNORECASE)
-            prompt_trunc = insensitive_query.sub(rf"{Colors.BOLD}{Colors.MAGENTA}\g<0>{Colors.RESET}", prompt_trunc)
+            tag_raw = f" {pin_indicator}" if pin_indicator else ""
+            tag_colored = f" {pin_indicator}" if pin_indicator else ""
 
+        max_prompt_len = 94 - len(tag_raw)
+        if len(prompt) > max_prompt_len:
+            prompt_trunc = prompt[:max_prompt_len-3] + '...'
+        else:
+            prompt_trunc = prompt
+            
+        combined_raw = f"{prompt_trunc}{tag_raw}"
+        pad_len = 94 - len(combined_raw)
+        
         is_selected = (i == selected_idx)
         
         if is_selected:
-            raw_prompt = s['prompt']
-            if len(raw_prompt) > max_len:
-                raw_prompt = raw_prompt[:max_len] + '...'
-            else:
-                raw_prompt = raw_prompt.ljust(max_len)
-                
-            # Create the raw 117-char line without any ANSI colors
-            raw_line = f"{idx:<3} │ {s['relative']:<14} │ {id_tag_str} │ {raw_prompt}"
+            padded_combined_raw = combined_raw + (" " * pad_len)
+            raw_line = f"{idx:<3} │ {s['relative']:<14} │ {padded_combined_raw}"
             
             bg = "\033[48;5;39m"  # Blue background
             fg_black = "\033[38;5;232m" # Black text
@@ -86,9 +76,7 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
             reset = "\033[0m"
             
             if search_query:
-                import re
                 insensitive_query = re.compile(re.escape(search_query), re.IGNORECASE)
-                # Pink text for search highlight, back to black
                 raw_line = insensitive_query.sub(rf"\033[38;5;199m\033[1m\g<0>\033[22m{fg_black}", raw_line)
 
             pill_left = f"{fg_blue}{bg}{fg_black}"
@@ -96,10 +84,13 @@ def print_beautiful_table(sessions: List[Dict], total_count: int, start_idx: int
             
             print(f"  {pill_left}{raw_line}{pill_right}")
         else:
+            if search_query:
+                insensitive_query = re.compile(re.escape(search_query), re.IGNORECASE)
+                prompt_trunc = insensitive_query.sub(rf"{Colors.BOLD}{Colors.MAGENTA}\g<0>{Colors.RESET}", prompt_trunc)
+
             idx_str = f"{Colors.BOLD}{Colors.YELLOW}{idx:<3}{Colors.RESET}"
             time_str = f"{Colors.CYAN}{s['relative']:<14}{Colors.RESET}"
-            cid_str = f"{Colors.GREEN}{id_tag_str}{Colors.RESET}"
-            prompt_str = f"{Colors.RESET}{prompt_trunc}"
-            print(f"   {idx_str} │ {time_str} │ {cid_str} │ {prompt_str}")
+            prompt_str = f"{Colors.RESET}{prompt_trunc}{tag_colored}" + (" " * pad_len)
+            print(f"   {idx_str} │ {time_str} │ {prompt_str}")
 
-    print(f"{Colors.DIM} ──────┴────────────────┴──────────────────────┴────────────────────────────────────────────────────────────────────────{Colors.RESET}\n")
+    print(f"{Colors.DIM} ──────┴────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────{Colors.RESET}\n")
