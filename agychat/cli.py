@@ -79,7 +79,43 @@ def ui_set_tag(session: Dict, tag: str):
     except Exception as e:
         print(f"{Colors.RED}{_t('error_tag', e=e)}{Colors.RESET}")
 
+
+import threading
+import urllib.request
+import subprocess
+
+UPDATE_AVAILABLE = False
+def check_update_in_background():
+    global UPDATE_AVAILABLE
+    try:
+        from agychat import VERSION
+        url = "https://raw.githubusercontent.com/thefarrukhdev/AgyChat/master/agychat/__init__.py"
+        req = urllib.request.urlopen(url, timeout=3)
+        content = req.read().decode('utf-8')
+        for line in content.splitlines():
+            if line.startswith('VERSION'):
+                remote_version = line.split('=')[1].strip().strip('"').strip("'")
+                if remote_version != VERSION:
+                    UPDATE_AVAILABLE = True
+                break
+    except Exception:
+        pass
+
+def perform_update():
+    from agychat.ui.colors import Colors
+    print(f"\n{Colors.CYAN}Downloading the latest version of AgyChat...{Colors.RESET}")
+    res = subprocess.run(["uv", "tool", "install", "git+https://github.com/thefarrukhdev/AgyChat.git", "--force"])
+    if res.returncode == 0:
+        print(f"\n{Colors.GREEN}Successfully updated! Please restart the app.{Colors.RESET}")
+        sys.exit(0)
+    else:
+        print(f"\n{Colors.RED}Failed to update automatically. Please run:{Colors.RESET}")
+        print(f"{Colors.YELLOW}uv tool install git+https://github.com/thefarrukhdev/AgyChat.git --force{Colors.RESET}")
+        import time
+        time.sleep(3)
+
 def main():
+    threading.Thread(target=check_update_in_background, daemon=True).start()
     lang_parser = argparse.ArgumentParser(add_help=False)
     lang_parser.add_argument("--lang")
     lang_args, _ = lang_parser.parse_known_args()
@@ -178,6 +214,9 @@ def main():
             print_beautiful_table(displayed_sessions, total_count=total_count, start_idx=start_idx, page=page, total_pages=total_pages, search_query=current_search_query, selected_idx=selected_idx)
 
             try:
+                if UPDATE_AVAILABLE:
+                    print(f" {Colors.BOLD}{Colors.YELLOW}[u] Update Available! (Press u to update){Colors.RESET}")
+                
                 if is_searching:
                     print(f" {Colors.BOLD}{Colors.CYAN}Search 🔍 : {Colors.RESET}{input_buffer}", end="")
                 else:
@@ -231,6 +270,9 @@ def main():
                         import time
                         time.sleep(0.5)
                     continue
+                elif key == 'u' and UPDATE_AVAILABLE and not input_buffer:
+                    perform_update()
+                    break
                 elif key in ('q', 'Q', '\x1b') and not input_buffer:
                     break
                 elif key.isdigit():

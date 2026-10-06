@@ -27,23 +27,19 @@ A beautiful, zero-dependency Terminal User Interface (TUI) to view, manage, and 
 - **🚀 Lightning Fast**: Optimized lazy-parsing of massive `.jsonl` transcript logs. It reads only what's necessary, making it blazing fast even with hundreds of sessions.
 - **🏷️ Tagging & 📌 Pinning**: Give custom names to your important sessions (`--tag` or `t`) and pin them to the top of the list (`--pin` or `p`).
 - **🔍 Live Search**: Type `s` in the UI to instantly filter past sessions in real-time as you type, or use `--search` from the CLI.
+- **🔄 Auto-Updater**: AgyChat will automatically check for new releases in the background and let you update seamlessly with a single keypress (`u`)!
 
 ## 📦 Installation
 
 We officially support installation via modern Python tool managers like `uv` or `pipx`.
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/thefarrukhdev/AgyChat.git
-cd AgyChat
+# 1. Install the main CLI directly from GitHub using uv (or pipx)
+uv tool install git+https://github.com/thefarrukhdev/AgyChat.git
 
-# 2. Install the main CLI using uv (or pipx)
-uv tool install .
-
-# 3. Optional: Install the Multi-Account OAuth Manager
+# 2. Optional: Install the Multi-Account OAuth Manager
 # (Allows flawless switching between IDE & CLI accounts)
-mkdir -p ~/.local/bin
-cp scripts/agy-oauth-manager ~/.local/bin/
+curl -sSL https://raw.githubusercontent.com/thefarrukhdev/AgyChat/master/scripts/agy-oauth-manager -o ~/.local/bin/agy-oauth-manager
 chmod +x ~/.local/bin/agy-oauth-manager
 ```
 
