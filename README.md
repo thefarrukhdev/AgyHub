@@ -46,7 +46,6 @@ chmod +x ~/.local/bin/agy-oauth-manager
 Installing the package automatically adds **three** command aliases to your terminal. You can run the tool using any of them:
 - `agychat`
 - `chats`
-- `agy-sessions`
 
 ## 🛠️ Usage
 

@@ -15,7 +15,6 @@ dependencies = []
 [project.scripts]
 agychat = "agychat.cli:main"
 chats = "agychat.cli:main"
-agy-sessions = "agychat.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
